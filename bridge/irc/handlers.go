@@ -131,6 +131,7 @@ func (b *Birc) handleNewConnection(client *girc.Client, event girc.Event) {
 	i.Handlers.AddBg("QUIT", b.handleJoinPart)
 	i.Handlers.AddBg("KICK", b.handleJoinPart)
 	i.Handlers.Add("INVITE", b.handleInvite)
+	i.Handlers.Add(girc.ERR_CANNOTSENDTOCHAN, b.HandleCannotSendChannel)
 }
 
 func (b *Birc) handleNickServ() {
