@@ -2,10 +2,9 @@ module github.com/42wim/matterbridge
 
 require (
 	github.com/42wim/go-gitter v0.0.0-20170828205020-017310c2d557
-	github.com/Baozisoftware/qrcode-terminal-go v0.0.0-20170407111555-c0650d8dff0f
 	github.com/Benau/tgsconverter v0.0.0-20210809170556-99f4a4f6337f
+	github.com/Davincible/goinsta v0.0.0-20220425072628-96aad7267204
 	github.com/Philipp15b/go-steam v1.0.1-0.20200727090957-6ae9b3c0a560
-	github.com/Rhymen/go-whatsapp v0.1.2-0.20211102134409-31a2e740845c
 	github.com/SevereCloud/vksdk/v2 v2.14.1
 	github.com/bwmarrin/discordgo v0.25.0
 	github.com/d5/tengo/v2 v2.12.0
@@ -41,6 +40,7 @@ require (
 	github.com/saintfish/chardet v0.0.0-20120816061221-3af4cd4741ca
 	github.com/shazow/ssh-chat v1.10.1
 	github.com/sirupsen/logrus v1.8.1
+	github.com/skip2/go-qrcode v0.0.0-20200617195104-da1b6568686e
 	github.com/slack-go/slack v0.11.0
 	github.com/spf13/viper v1.12.0
 	github.com/stretchr/testify v1.7.2
@@ -63,14 +63,21 @@ require (
 require (
 	filippo.io/edwards25519 v1.0.0-rc.1 // indirect
 	github.com/Benau/go_rlottie v0.0.0-20210807002906-98c1b2421989 // indirect
+	github.com/Davincible/goinsta/v3 v3.1.3 // indirect
 	github.com/Jeffail/gabs v1.4.0 // indirect
 	github.com/apex/log v1.9.0 // indirect
 	github.com/av-elier/go-decimal-to-rational v0.0.0-20191127152832-89e6aad02ecf // indirect
 	github.com/blang/semver v3.5.1+incompatible // indirect
+	github.com/chromedp/cdproto v0.0.0-20220530001853-c0f376d894d1 // indirect
+	github.com/chromedp/chromedp v0.8.2 // indirect
+	github.com/chromedp/sysutil v1.0.0 // indirect
 	github.com/dustin/go-humanize v1.0.0 // indirect
 	github.com/dyatlov/go-opengraph v0.0.0-20210112100619-dae8665a5b09 // indirect
 	github.com/francoispqt/gojay v1.2.13 // indirect
 	github.com/go-asn1-ber/asn1-ber v1.5.3 // indirect
+	github.com/gobwas/httphead v0.1.0 // indirect
+	github.com/gobwas/pool v0.2.1 // indirect
+	github.com/gobwas/ws v1.1.0 // indirect
 	github.com/golang-jwt/jwt v3.2.2+incompatible // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/google/uuid v1.3.0 // indirect
@@ -79,6 +86,7 @@ require (
 	github.com/hashicorp/errwrap v1.1.0 // indirect
 	github.com/hashicorp/go-multierror v1.1.1 // indirect
 	github.com/hashicorp/hcl v1.0.0 // indirect
+	github.com/josharian/intern v1.0.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/kballard/go-shellquote v0.0.0-20180428030007-95032a82bc51 // indirect
 	github.com/kettek/apng v0.0.0-20191108220231-414630eed80f // indirect
@@ -86,6 +94,7 @@ require (
 	github.com/klauspost/cpuid/v2 v2.0.12 // indirect
 	github.com/labstack/gommon v0.3.1 // indirect
 	github.com/magiconair/properties v1.8.6 // indirect
+	github.com/mailru/easyjson v0.7.7 // indirect
 	github.com/mattermost/go-i18n v1.11.1-0.20211013152124-5c415071e404 // indirect
 	github.com/mattermost/ldap v0.0.0-20201202150706-ee0e6284187d // indirect
 	github.com/mattermost/logr v1.0.13 // indirect
@@ -137,7 +146,7 @@ require (
 	golang.org/x/crypto v0.0.0-20220513210258-46612604a0f9 // indirect
 	golang.org/x/mod v0.6.0-dev.0.20220106191415-9b9b3d81d5e3 // indirect
 	golang.org/x/net v0.0.0-20220520000938-2e3eb7b945c2 // indirect
-	golang.org/x/sys v0.0.0-20220520151302-bc2c85ada10a // indirect
+	golang.org/x/sys v0.0.0-20220608164250-635b8c9b7f68 // indirect
 	golang.org/x/term v0.0.0-20210927222741-03fcf44c2211 // indirect
 	golang.org/x/time v0.0.0-20201208040808-7e3f01d25324 // indirect
 	golang.org/x/tools v0.1.10 // indirect
@@ -158,6 +167,8 @@ require (
 	modernc.org/token v1.0.0 // indirect
 	rsc.io/qr v0.2.0 // indirect
 )
+
+replace github.com/Davincible/goinsta => /home/ibrahim/legacy/goinsta
 
 //replace github.com/matrix-org/gomatrix => github.com/matterbridge/gomatrix v0.0.0-20220205235239-607eb9ee6419
 

@@ -186,7 +186,9 @@ type Protocol struct {
 	AppServiceLink         bool       // appservice ,others
 	UserSuffix             string     // appservice
 	AvatarUrl              string     // appservice
-
+	
+	ImportProfilePath string // instagram
+	TwoFactorCode     string // instagram
 
 }
 
@@ -244,6 +246,7 @@ type BridgeValues struct {
 	Keybase            map[string]Protocol
 	Mumble             map[string]Protocol
 	Appservice         map[string]Protocol
+	Instagram          map[string]Protocol
 	General            Protocol
 	Tengo              Tengo
 	Gateway            []Gateway
