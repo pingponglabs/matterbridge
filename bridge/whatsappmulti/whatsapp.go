@@ -15,6 +15,7 @@ import (
 	"github.com/42wim/matterbridge/bridge"
 	"github.com/42wim/matterbridge/bridge/config"
 	"github.com/mdp/qrterminal"
+	"github.com/skip2/go-qrcode"
 
 	"go.mau.fi/whatsmeow"
 	"go.mau.fi/whatsmeow/binary/proto"
@@ -28,7 +29,8 @@ import (
 
 const (
 	// Account config parameters
-	cfgNumber = "Number"
+	cfgNumber     = "Number"
+	qrImageOutput = "QrImageOutput"
 )
 
 // Bwhatsapp Bridge structure keeping all the information needed for relying
@@ -95,7 +97,22 @@ func (b *Bwhatsapp) Connect() error {
 	if b.wc.Store.ID == nil {
 		for evt := range qrChan {
 			if evt.Event == "code" {
+				// custom code : save the QrCode as png image
+				err := qrcode.WriteFile(evt.Code, qrcode.Medium, 256, b.GetString(qrImageOutput))
+				if err != nil {
+					b.Log.Infof("failed to create QR code image :  %s", err)
+				} else {
+					// custom json output containing information about the qrcode image path
+					jsonQrCodeInfo := map[string]string{
+						"protocol":          "whatsapp",
+						"action":            "qrcode",
+						"qrcode-image-path": b.GetString(qrImageOutput)}
+
+					buf, _ := json.Marshal(jsonQrCodeInfo)
+					fmt.Println(string(buf))
+				}
 				qrterminal.GenerateHalfBlock(evt.Code, qrterminal.L, os.Stdout)
+
 			} else {
 				b.Log.Infof("QR channel result: %s", evt.Event)
 			}
@@ -113,6 +130,13 @@ func (b *Bwhatsapp) Connect() error {
 			return errors.New("failed to connect to WhatsApp: " + err.Error())
 		}
 	}
+	// custom json output for successfull QrCode noftification
+	jsonQrCodeSuccessInfo := map[string]string{
+		"protocol": "whatsapp",
+		"action":   "qrcode-login-success"}
+
+	buf, _ := json.Marshal(jsonQrCodeSuccessInfo)
+	fmt.Println(string(buf))
 
 	b.Log.Infoln("WhatsApp connection successful")
 
@@ -195,13 +219,24 @@ func (b *Bwhatsapp) JoinChannel(channel config.ChannelInfo) error {
 			foundGroups = append(foundGroups, group.Name)
 		}
 	}
-
+	listGroupChannels := make(map[string]string)
 	switch len(foundGroups) {
 	case 0:
 		// didn't match any group - print out possibilites
 		for _, group := range groups {
 			b.Log.Infof("%s %s", group.JID, group.Name)
+			listGroupChannels[group.JID.String()] = group.Name
 		}
+		jsonListInfo := map[string]interface{}{
+			"protocol": "whatsapp",
+			"action":   "channels-list",
+			"list":     listGroupChannels}
+		buf, err := json.Marshal(jsonListInfo)
+		if err != nil {
+			b.Log.Infof("failed to marshal channels list information ")
+		}
+		fmt.Println(string(buf))
+
 		return fmt.Errorf("please specify group's JID from the list above instead of the name '%s'", channel.Name)
 	case 1:
 		return fmt.Errorf("group name might change. Please configure gateway with channel=\"%v\" instead of channel=\"%v\"", foundGroups[0], channel.Name)
