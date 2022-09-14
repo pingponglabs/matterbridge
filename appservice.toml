@@ -1,0 +1,45 @@
+[irc]
+  [irc.libera]
+    Nick = "ibra10"
+    Server = "irc.libera.chat:6667"
+    DebugLevel = 2
+
+[appservice]
+  [appservice.bot-libera]
+    # appservice matrixId 
+    MxId = "@_irc_bot:localhost" 
+    # home server token 
+    HsToken = "CqtpqUyM"
+    # appservice token
+    Token = "30c05ae90a248a4188e620216fa72e349803310ec83e2a77b34fe90be6081f46"
+    # matrix server
+    Server = "http://localhost:8008"
+    # temporary storage to persist rooms and users info , it can be replaced by redis or sql database
+    StorePath ="/tmp/room-info.json"
+    # the main matrix user that will be bridged to external networks
+    MainUser = "@ibra10:localhost"
+    # appservice listening port 
+    Port = "1234"
+    UseUserName = true
+    RemoteNickFormat="{NICK}"
+
+[general]
+Debug = true    
+	 
+[tengo]
+
+[[gateway]]
+  Name = "Gateway0"
+  Enable = true
+
+  [[gateway.InOut]]
+    Account = "irc.libera"
+    Channel = ""
+        AppServiceLink = true
+
+    [gateway.InOut.Options]
+
+  [[gateway.InOut]]
+    Account = "appservice.bot-libera"
+    Channel = ""
+    [gateway.InOut.Options]

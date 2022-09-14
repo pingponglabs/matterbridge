@@ -110,6 +110,8 @@ func (b *Birc) handleJoinPart(client *girc.Client, event girc.Event) {
 		} else {
 			b.Log.Debugf("<= Sending JOIN_LEAVE event from %s to gateway", b.Account)
 		}
+		msg.ActionCommand = strings.ToLower(event.Command)
+		msg.ChannelUsersMember = []string{event.Source.Name}
 		b.Log.Debugf("<= Message is %#v", msg)
 		b.Remote <- msg
 		return
@@ -132,6 +134,12 @@ func (b *Birc) handleNewConnection(client *girc.Client, event girc.Event) {
 	i.Handlers.AddBg("KICK", b.handleJoinPart)
 	i.Handlers.Add("INVITE", b.handleInvite)
 	i.Handlers.Add(girc.ERR_CANNOTSENDTOCHAN, b.HandleCannotSendChannel)
+
+	if b.GetBool("AppServiceLink") {
+		i.Handlers.Add(girc.RPL_NAMREPLY, b.HandleStoreNames)
+		i.Handlers.Add(girc.RPL_ENDOFNAMES, b.HandleEndNames)
+		i.Handlers.Add(girc.RPL_TOPIC, b.HandleTopicChannel)
+	}
 }
 
 func (b *Birc) handleNickServ() {
@@ -182,6 +190,11 @@ func (b *Birc) handleOtherAuth(client *girc.Client, event girc.Event) {
 }
 
 func (b *Birc) handlePrivMsg(client *girc.Client, event girc.Event) {
+	if event.Params[0] == b.Nick {
+		b.handleDirectMsg(client, event)
+		return
+	}
+
 	if b.skipPrivMsg(event) {
 		return
 	}
@@ -191,6 +204,7 @@ func (b *Birc) handlePrivMsg(client *girc.Client, event girc.Event) {
 		Channel:  strings.ToLower(event.Params[0]),
 		Account:  b.Account,
 		UserID:   event.Source.Ident + "@" + event.Source.Host,
+		//OriginChannel: strings.ToLower(event.Params[0]),
 	}
 
 	b.Log.Debugf("== Receiving PRIVMSG: %s %s %#v", event.Source.Name, event.Last(), event)

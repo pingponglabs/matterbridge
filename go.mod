@@ -14,6 +14,7 @@ require (
 	github.com/go-telegram-bot-api/telegram-bot-api/v5 v5.5.1
 	github.com/gomarkdown/markdown v0.0.0-20220607163217-45f7c050e2d1
 	github.com/google/gops v0.3.23
+	github.com/gorilla/mux v1.8.0
 	github.com/gorilla/schema v1.2.0
 	github.com/gorilla/websocket v1.5.0
 	github.com/harmony-development/shibshib v0.0.0-20220101224523-c98059d09cfa
@@ -55,6 +56,7 @@ require (
 	google.golang.org/protobuf v1.28.0
 	gopkg.in/olahol/melody.v1 v1.0.0-20170518105555-d52139073376
 	layeh.com/gumble v0.0.0-20200818122324-146f9205029b
+	maunium.net/go/mautrix v0.11.0
 	modernc.org/sqlite v1.17.3
 )
 
@@ -115,7 +117,6 @@ require (
 	github.com/rivo/uniseg v0.2.0 // indirect
 	github.com/shazow/rateio v0.0.0-20200113175441-4461efc8bdc4 // indirect
 	github.com/sizeofint/webpanimation v0.0.0-20210809145948-1d2b32119882 // indirect
-	github.com/skip2/go-qrcode v0.0.0-20190110000554-dc11ecdae0a9 // indirect
 	github.com/spf13/afero v1.8.2 // indirect
 	github.com/spf13/cast v1.5.0 // indirect
 	github.com/spf13/jwalterweatherman v1.1.0 // indirect
@@ -133,7 +134,7 @@ require (
 	go.uber.org/atomic v1.9.0 // indirect
 	go.uber.org/multierr v1.7.0 // indirect
 	go.uber.org/zap v1.17.0 // indirect
-	golang.org/x/crypto v0.0.0-20220411220226-7b82a4e95df4 // indirect
+	golang.org/x/crypto v0.0.0-20220513210258-46612604a0f9 // indirect
 	golang.org/x/mod v0.6.0-dev.0.20220106191415-9b9b3d81d5e3 // indirect
 	golang.org/x/net v0.0.0-20220520000938-2e3eb7b945c2 // indirect
 	golang.org/x/sys v0.0.0-20220520151302-bc2c85ada10a // indirect

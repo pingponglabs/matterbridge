@@ -137,7 +137,10 @@ func (b *Btelegram) Send(msg config.Message) (string, error) {
 	if msg.ID != "" {
 		return b.handleEdit(&msg, chatid)
 	}
+	if b.GetBool("AppServiceLink") {
+		return b.sendApsMessage(chatid, msg.Username, msg.Text, parentID, msg)
 
+	}
 	// Post normal message
 	// TODO: recheck it.
 	// Ignore empty text field needs for prevent double messages from whatsapp to telegram

@@ -83,7 +83,7 @@ func (b *Bdiscord) messageUpdate(s *discordgo.Session, m *discordgo.MessageUpdat
 }
 
 func (b *Bdiscord) messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) { //nolint:unparam
-	if m.GuildID != b.guildID {
+	if m.GuildID != b.guildID && m.GuildID != "" {
 		b.Log.Debugf("Ignoring messageCreate because it originates from a different guild")
 		return
 	}
@@ -120,6 +120,11 @@ func (b *Bdiscord) messageCreate(s *discordgo.Session, m *discordgo.MessageCreat
 
 	// set channel name
 	rmsg.Channel = b.getChannelName(m.ChannelID)
+	if m.GuildID == "" {
+		rmsg.Channel = m.Author.Username
+		rmsg.ChannelId = m.ChannelID
+		rmsg.Event = "direct_msg"
+	}
 
 	fromWebhook := m.WebhookID != ""
 	if !fromWebhook && !b.GetBool("UseUserName") {

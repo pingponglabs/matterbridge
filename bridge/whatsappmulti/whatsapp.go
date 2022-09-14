@@ -4,6 +4,7 @@ package bwhatsapp
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"mime"
@@ -169,7 +170,10 @@ func (b *Bwhatsapp) JoinChannel(channel config.ChannelInfo) error {
 	if err != nil {
 		return err
 	}
-
+	if b.GetBool("AppServiceLink") {
+		go b.SendGroupsInfo(groups)
+		return nil
+	}
 	// verify if we are member of the given group
 	if byJid {
 		gJID, err := types.ParseJID(channel.Name)

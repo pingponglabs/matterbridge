@@ -30,6 +30,19 @@ func (b *Btelegram) handleUpdate(rmsg *config.Message, message, posted, edited *
 		} else {
 			message = posted
 			rmsg.Text = message.Text
+			rmsg.ChannelId = strconv.FormatInt(message.Chat.ID, 10)
+			rmsg.ChannelName = message.Chat.Title
+			rmsg.ChannelType = message.Chat.Type
+			username := message.Chat.Title + "_bot"
+			userId := ""
+			if message.From != nil {
+				username = message.From.FirstName + " " + message.From.LastName
+				strconv.FormatInt(message.From.ID, 10)
+			}
+			rmsg.ChannelUsersMember = []string{username}
+			rmsg.UsersMemberId = map[string]string{username: userId}
+			rmsg.Mentions = make(map[string]string)
+			b.HandleSendMentions(message, rmsg.UsersMemberId, rmsg.Mentions)
 		}
 	}
 

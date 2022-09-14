@@ -46,6 +46,8 @@ type Message struct {
 	Timestamp time.Time `json:"timestamp"`
 	ID        string    `json:"id"`
 	Extra     map[string][]interface{}
+
+	ExtraNetworkInfo
 }
 
 func (m Message) ParentNotFound() bool {
@@ -176,6 +178,16 @@ type Protocol struct {
 	VerboseJoinPart        bool       // IRC
 	WebhookBindAddress     string     // mattermost, slack
 	WebhookURL             string     // mattermost, slack
+
+	HsToken                string     // appservice
+	StorePath              string     // appservice
+	MainUser               string     // appservice
+	Port                   string     // appservice
+	AppServiceLink         bool       // appservice ,others
+	UserSuffix             string     // appservice
+	AvatarUrl              string     // appservice
+
+
 }
 
 type ChannelOptions struct {
@@ -231,6 +243,7 @@ type BridgeValues struct {
 	Zulip              map[string]Protocol
 	Keybase            map[string]Protocol
 	Mumble             map[string]Protocol
+	Appservice         map[string]Protocol
 	General            Protocol
 	Tengo              Tengo
 	Gateway            []Gateway
