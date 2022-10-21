@@ -247,6 +247,7 @@ type BridgeValues struct {
 	Mumble             map[string]Protocol
 	Appservice         map[string]Protocol
 	Instagram          map[string]Protocol
+	Facebookbusiness   map[string]Protocol
 	General            Protocol
 	Tengo              Tengo
 	Gateway            []Gateway
