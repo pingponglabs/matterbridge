@@ -1,5 +1,3 @@
-// +build whatsappmulti
-
 package bwhatsapp
 
 import (
@@ -102,6 +100,9 @@ func (b *Bwhatsapp) handleTextMessage(messageInfo types.MessageInfo, msg *proto.
 		//      ParentID: TODO, // TODO handle thread replies  // map from Info.QuotedMessageID string
 		ID: messageInfo.ID,
 	}
+	if rmsg.Channel == rmsg.UserID && !b.IsSetupDM(rmsg.UserID) {
+		b.HandleDirectMessage(&rmsg)
+	}
 
 	if avatarURL, exists := b.userAvatars[senderJID.String()]; exists {
 		rmsg.Avatar = avatarURL
@@ -134,7 +135,9 @@ func (b *Bwhatsapp) handleImageMessage(msg *events.Message) {
 		Extra:    make(map[string][]interface{}),
 		ID:       msg.Info.ID,
 	}
-
+	if rmsg.Channel == rmsg.UserID && !b.IsSetupDM(rmsg.UserID) {
+		b.HandleDirectMessage(&rmsg)
+	}
 	if avatarURL, exists := b.userAvatars[senderJID.String()]; exists {
 		rmsg.Avatar = avatarURL
 	}
@@ -197,7 +200,9 @@ func (b *Bwhatsapp) handleVideoMessage(msg *events.Message) {
 		Extra:    make(map[string][]interface{}),
 		ID:       msg.Info.ID,
 	}
-
+	if rmsg.Channel == rmsg.UserID && !b.IsSetupDM(rmsg.UserID) {
+		b.HandleDirectMessage(&rmsg)
+	}
 	if avatarURL, exists := b.userAvatars[senderJID.String()]; exists {
 		rmsg.Avatar = avatarURL
 	}
@@ -254,7 +259,9 @@ func (b *Bwhatsapp) handleAudioMessage(msg *events.Message) {
 		Extra:    make(map[string][]interface{}),
 		ID:       msg.Info.ID,
 	}
-
+	if rmsg.Channel == rmsg.UserID && !b.IsSetupDM(rmsg.UserID) {
+		b.HandleDirectMessage(&rmsg)
+	}
 	if avatarURL, exists := b.userAvatars[senderJID.String()]; exists {
 		rmsg.Avatar = avatarURL
 	}
@@ -311,7 +318,9 @@ func (b *Bwhatsapp) handleDocumentMessage(msg *events.Message) {
 		Extra:    make(map[string][]interface{}),
 		ID:       msg.Info.ID,
 	}
-
+	if rmsg.Channel == rmsg.UserID && !b.IsSetupDM(rmsg.UserID) {
+		b.HandleDirectMessage(&rmsg)
+	}
 	if avatarURL, exists := b.userAvatars[senderJID.String()]; exists {
 		rmsg.Avatar = avatarURL
 	}

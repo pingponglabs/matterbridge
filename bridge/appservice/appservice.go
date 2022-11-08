@@ -299,11 +299,15 @@ func (b *AppServMatrix) handleDirectInvites(userId, roomId, Sender string) error
 	}
 	channelName := userName
 
+	userInfo, _ := b.getVirtualUserInfo(userName)
+	remoteId := userInfo.RemoteId
 	b.setRoomInfo(channelName, &MatrixRoomInfo{
 		RoomName: channelName,
 		Alias:    roomId,
 		Members:  []ChannelMember{{Name: userName}},
 		IsDirect: true,
+		RemoteId: remoteId,
+		Metadata: nil,
 	})
 	b.setRoomMap(roomId, channelName)
 	b.saveState()
@@ -560,7 +564,7 @@ func (b *AppServMatrix) handleDirectMessages(username, channelId string) {
 
 		IsDirect: true,
 	})
-
+	time.Sleep(2 * time.Second)
 	if err != nil {
 		log.Println(fmt.Errorf("failed to  create direct room : %w", err))
 		return
@@ -694,30 +698,37 @@ func (b *AppServMatrix) Send(msg config.Message) (string, error) {
 			b.handleChannelInfoEvent(msg.ChannelName, msg.ChannelId, msg.ChannelUsersMember)
 			b.addUsersId(msg.UsersMemberId)
 			return "", nil
+		}
+		if msg.Event == "direct_msg" {
+			b.handleDirectMessages(msg.Username, msg.ChannelId)
+
+			msg.Channel = msg.Username
+
 		} else {
 			msg.Channel = b.getWhatsappName(msg.Channel)
 		}
-	}
 
 	// Make a action /me of the message
 
 	//TODO handle virtualUser creation here
-	if msg.Event == "new_users" {
-		b.RemoteProtocol = msg.Protocol
+	default:
+		if msg.Event == "new_users" {
+			b.RemoteProtocol = msg.Protocol
 
-		b.remoteUsername = msg.Username
-		b.RemoteProtocol = msg.Protocol
-		b.handleChannelInfoEvent(msg.Channel, msg.ChannelId, msg.ChannelUsersMember)
-		// TODO create virtual users and join channels
-		return "", nil
-	}
-	if msg.Event == "direct_msg" {
-		b.RemoteProtocol = msg.Protocol
+			b.remoteUsername = msg.Username
+			b.RemoteProtocol = msg.Protocol
+			b.handleChannelInfoEvent(msg.Channel, msg.ChannelId, msg.ChannelUsersMember)
+			// TODO create virtual users and join channels
+			return "", nil
+		}
+		if msg.Event == "direct_msg" {
+			b.RemoteProtocol = msg.Protocol
 
-		b.handleDirectMessages(msg.Username, msg.ChannelId)
+			b.handleDirectMessages(msg.Username, msg.ChannelId)
 
-		msg.Channel = msg.Username
-		// TODO create virtual users and join channels
+			msg.Channel = msg.Username
+			// TODO create virtual users and join channels
+		}
 	}
 	channel := b.getRoomID(msg.Channel)
 	b.Log.Debugf("Channel %s maps to channel id %s", msg.Channel, channel)

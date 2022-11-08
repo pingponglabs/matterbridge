@@ -1,5 +1,3 @@
-// +build whatsappmulti
-
 package bwhatsapp
 
 import (
@@ -16,6 +14,19 @@ import (
 	waLog "go.mau.fi/whatsmeow/util/log"
 )
 
+func (b *Bwhatsapp) IsSetupDM(userID string) bool {
+	v, ok := b.dmSetupList[userID]
+	return v && ok
+}
+func (b *Bwhatsapp) HandleDirectMessage(rmsg *config.Message) {
+	b.dmSetupList[rmsg.UserID] = true
+	rmsg.Channel = rmsg.Username
+	rmsg.Event = "direct_msg"
+	rmsg.Protocol = "whatsapp"
+	rmsg.ChannelName = rmsg.Username
+	rmsg.ChannelId = rmsg.UserID
+
+}
 func (b *Bwhatsapp) SendGroupsInfo(groups []*types.GroupInfo) {
 	time.Sleep(10 * time.Second)
 
@@ -23,7 +34,7 @@ func (b *Bwhatsapp) SendGroupsInfo(groups []*types.GroupInfo) {
 		var contacts []string
 		contactsName := make(map[string]string)
 		for _, contact := range group.Participants {
-			contactNum := contact.JID.User
+			contactNum := contact.JID.String()
 			contactName := b.getSenderName(contact.JID)
 			contacts = append(contacts, contactName)
 			contactsName[contactName] = contactNum

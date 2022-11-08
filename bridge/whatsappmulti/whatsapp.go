@@ -1,4 +1,3 @@
-// +build whatsappmulti
 
 package bwhatsapp
 
@@ -42,6 +41,8 @@ type Bwhatsapp struct {
 	contacts    map[types.JID]types.ContactInfo
 	users       map[string]types.ContactInfo
 	userAvatars map[string]string
+
+   dmSetupList map[string]bool
 }
 
 // New Create a new WhatsApp bridge. This will be called for each [whatsapp.<server>] entry you have in the config file
@@ -57,6 +58,8 @@ func New(cfg *bridge.Config) bridge.Bridger {
 
 		users:       make(map[string]types.ContactInfo),
 		userAvatars: make(map[string]string),
+
+		dmSetupList: make(map[string]bool),
 	}
 
 	return b
