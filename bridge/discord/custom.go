@@ -11,8 +11,10 @@ import (
 func (b *Bdiscord) SendChannelsAndMembers() {
 	time.Sleep(10 * time.Second)
 	slUser := []string{}
-	for k, _ := range b.nickMemberMap {
+	userIdmap := map[string]string{}
+	for k, v := range b.nickMemberMap {
 		slUser = append(slUser, k)
+		userIdmap[v.User.ID] = k
 	}
 	for _, v := range b.channels {
 
@@ -24,26 +26,28 @@ func (b *Bdiscord) SendChannelsAndMembers() {
 			ExtraNetworkInfo: config.ExtraNetworkInfo{
 				ChannelUsersMember: slUser,
 				ChannelId:          v.ID,
+				ChannelName:        v.Name,
+				UsersMemberId:      userIdmap,
 			},
 		}
 	}
 }
 func (b *Bdiscord) HandleDirectMessage(msg config.Message) (string, error) {
 	b.Log.Debugf("=> Receiving %#v", msg)
-	channelID := b.getDMChannelID(msg.Channel)
-	if channelID == "" {
-		dmChannel, err := b.c.UserChannelCreate(b.nickMemberMap[msg.Channel].User.ID)
+
+	if !b.IsDMChannelIDExist(msg.Channel) {
+		dmChannel, err := b.c.UserChannelCreate(msg.Channel)
 		if err != nil {
 			b.Log.Errorf("failed creating direct message channel for user %s", msg.Channel)
 			return "", nil
 		}
-		dmChannel.Name = msg.Channel
 		b.channels = append(b.channels, dmChannel)
 	}
-	channelID = b.getDMChannelID(msg.Channel)
-	if channelID == "" {
+	if !b.IsDMChannelIDExist(msg.Channel) {
 		return "", fmt.Errorf("Could not find channelID for %v", msg.Channel)
 	}
+	channelID := msg.Channel
+
 	if msg.Event == config.EventUserTyping {
 		if b.GetBool("ShowUserTyping") {
 			err := b.c.ChannelTyping(channelID)
@@ -81,4 +85,16 @@ func (b *Bdiscord) getDMChannelID(name string) string {
 		}
 	}
 	return ""
+}
+func (b *Bdiscord) IsDMChannelIDExist(ID string) bool {
+
+	b.channelsMutex.RLock()
+	defer b.channelsMutex.RUnlock()
+
+	for _, channel := range b.channels {
+		if channel.ID == ID && channel.Type == discordgo.ChannelTypeDM {
+			return true
+		}
+	}
+	return false
 }

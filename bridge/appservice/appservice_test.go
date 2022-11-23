@@ -24,14 +24,14 @@ func TestAppServMatrix_Connect(t *testing.T) {
 	fakeconf.Fill()
 
 	b := AppServMatrix{
-		mc:          &matrix.Client{},
-		apsCli:      &gomatrix.Client{},
-		UserID:      "",
-		NicknameMap: map[string]NicknameCacheEntry{},
-		RoomMap:     map[string]string{},
-		roomsInfo:   map[string]*MatrixRoomInfo{},
-		rateMutex:   sync.RWMutex{},
-		RWMutex:     sync.RWMutex{},
+		mc:           &matrix.Client{},
+		apsCli:       &gomatrix.Client{},
+		UserID:       "",
+		NicknameMap:  map[string]NicknameCacheEntry{},
+		RoomMap:      map[string]string{},
+		channelsInfo: map[string]*ChannelInfo{},
+		rateMutex:    sync.RWMutex{},
+		RWMutex:      sync.RWMutex{},
 		Config: &bridge.Config{
 			Bridge: &bridge.Bridge{
 				Bridger:  nil,
@@ -50,7 +50,7 @@ func TestAppServMatrix_Connect(t *testing.T) {
 	b.Connect()
 	channelMember := []string{"Spr0cket"}
 	b.loadState()
-	
+
 	msg := config.Message{
 		Text:      "hi good morning",
 		Channel:   "#ubuntu",

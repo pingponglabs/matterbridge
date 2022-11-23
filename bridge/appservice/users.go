@@ -13,14 +13,13 @@ import (
 var validUsernameRegex = regexp.MustCompile(`^[0-9a-zA-Z_\-=./]+$`)
 var allowedChars = "abcdefghijklmnopqrstuvwxyz" + "ABCDEFGHIJKLMNOPQRSTUVWXYZ" + "0123456789" + "_-=./"
 
-func (b *AppServMatrix) createVirtualUsers(member string) (MemberInfo, error) {
+func (b *AppServMatrix) createVirtualUsers(member, remoteID string) (MemberInfo, error) {
 	// TODO mapping for username
 	ValidUsername := member
 	if !validUsernameRegex.MatchString(member) {
 		ValidUsername = AlterUsername(member)
 	}
-	ValidUsername += "_" + randStringLowerRunes(3)
-
+	ValidUsername += "_" + randNumberRunes(3)
 	resp, _, err := b.apsCli.Register(&gomatrix.ReqRegister{
 		Username: b.GetString("ApsPrefix") + ValidUsername + b.GetString("UserSuffix"),
 		Type:     "m.login.application_service",
@@ -36,11 +35,14 @@ func (b *AppServMatrix) createVirtualUsers(member string) (MemberInfo, error) {
 	if err != nil {
 		log.Println(err)
 	}
-	return MemberInfo{Channels: []ChannelsInvite{},
+	return MemberInfo{
+		Channels:  []ChannelsInvite{},
+		Username:  member,
 		Token:     resp.AccessToken,
 		Id:        string(resp.UserID),
-		RemoteId:  "",
-		Registred: true}, nil
+		RemoteId:  remoteID,
+		Registred: true,
+	}, nil
 
 }
 func AlterUsername(s string) string {
@@ -51,109 +53,70 @@ func AlterUsername(s string) string {
 	}
 	return s
 }
-func (b *AppServMatrix) UsersState(members []userListState) {
-	for i := range members {
-		if userInfo, ok := b.getVirtualUserInfo(members[i].name); ok {
-			if userInfo.Registred {
-				members[i].Registred = true
-			}
-		} else {
-			members[i].NotExist = true
 
-		}
-
-	}
-}
-func (b *AppServMatrix) GetNotExistUsers(members []string) []string {
-	var list []string
-	for _, v := range members {
-		if _, ok := b.getVirtualUserInfo(v); !ok {
-			list = append(list, v)
+func (b *AppServMatrix) GetNotExistUsers(members map[string]string) map[string]string {
+	list := map[string]string{}
+	for k, v := range members {
+		if _, ok := b.getUserMapInfo(k); !ok {
+			list[k] = v
 		}
 	}
 	return list
 }
 
-func (b *AppServMatrix) channelsJoinedUsersState(channel string, externMembers []userListState) {
+func (b *AppServMatrix) addNewMembers(channel string, newMembers map[string]string) {
 	roomInfo, ok := b.getRoomInfo(channel)
 	if !ok {
 		return
 	}
-	for i := range externMembers {
-		exist := false
-		for _, member := range roomInfo.Members {
-			if externMembers[i].name == member.Name {
-				exist = true
-				break
-			}
-
-		}
-		if exist {
-			externMembers[i].Joined = true
-		}
-	}
-}
-
-func (b *AppServMatrix) addNewMembers(channel string, newMembers []string) {
-	roomInfo, ok := b.getRoomInfo(channel)
-	if !ok {
-		return
-	}
-
-	for _, v := range newMembers {
+	b.Lock()
+	defer b.Unlock()
+	for k, v := range newMembers {
 		exist := false
 		for _, m := range roomInfo.Members {
-			if v == m.Name {
+			if k == m.UserID {
 				exist = true
 				break
 			}
 		}
 		if !exist {
-			roomInfo.Members = append(roomInfo.Members, ChannelMember{Name: v})
-
+			roomInfo.Members[k] = ChannelMember{
+				Name:   v,
+				UserID: k,
+				Joined: false,
+			}
 		}
 	}
 
 }
-func (b *AppServMatrix) addNewMember(channel, newMembers string) {
+func (b *AppServMatrix) addNewMember(channel, newMember, userID string) {
 	roomInfo, ok := b.getRoomInfo(channel)
 	if !ok {
 		return
 	}
 	b.Lock()
 
-	roomInfo.Members = append(roomInfo.Members, ChannelMember{Name: newMembers})
+	roomInfo.Members[userID] = ChannelMember{
+		Name:   newMember,
+		UserID: userID,
+		Joined: false,
+	}
 	b.Unlock()
 
 }
 
-func (b *AppServMatrix) getVirtualUserInfo(username string) (MemberInfo, bool) {
+func (b *AppServMatrix) getVirtualUserInfo(mtxID string) (MemberInfo, bool) {
 	b.RLock()
 	defer b.RUnlock()
 
 	for k, v := range b.virtualUsers {
-		if k == username {
+		if k == mtxID {
 			return v, true
 		}
 	}
 	return MemberInfo{}, false
 }
-func (b *AppServMatrix) addVirtualUsers(usersListState []userListState) {
 
-	for i := range usersListState {
-		if usersListState[i].NotExist {
-			b.Lock()
-			b.virtualUsers[usersListState[i].name] = MemberInfo{
-				Token:     "",
-				Id:        "",
-				RemoteId:  "",
-				Registred: false,
-			}
-			usersListState[i].NotExist = false
-			b.Unlock()
-		}
-	}
-}
 func (b *AppServMatrix) addVirtualUser(username string, usersInfo MemberInfo) {
 	b.Lock()
 	b.virtualUsers[username] = usersInfo
@@ -173,19 +136,18 @@ func (b *AppServMatrix) getUsernameFromMtxId(userId string) string {
 	return ""
 
 }
-func (b *AppServMatrix) newVirtualUserMtxClient(username string) (*matrix.Client, error) {
+func (b *AppServMatrix) newVirtualUserMtxClient(mtxID string) (*matrix.Client, error) {
 	b.RLock()
 	defer b.RUnlock()
 
-	if val, ok := b.virtualUsers[username]; ok {
+	if val, ok := b.virtualUsers[mtxID]; ok {
 		return matrix.NewClient(b.GetString("Server"), val.Id, val.Token)
 	}
-	return nil, fmt.Errorf("username not exist on the appservice database")
+	return nil, fmt.Errorf(" username %s not exist on the appservice database", mtxID)
 }
 
 func (b *AppServMatrix) addUsersId(usersId map[string]string) {
 	for k, v := range usersId {
-		k = strings.TrimPrefix(k, "@")
 		if userInfo, ok := b.virtualUsers[k]; ok {
 
 			userInfo.RemoteId = v
@@ -193,4 +155,20 @@ func (b *AppServMatrix) addUsersId(usersId map[string]string) {
 		}
 	}
 	b.saveState()
+}
+func (b *AppServMatrix) getUserMapInfo(userID string) (UserMapInfo, bool) {
+	b.RLock()
+	defer b.RUnlock()
+
+	if v, ok := b.UsersMap[userID]; ok {
+		return v, true
+
+	}
+	return UserMapInfo{}, false
+}
+func (b *AppServMatrix) addUserMapInfo(UserID string, userInfo UserMapInfo) {
+	b.Lock()
+	b.UsersMap[UserID] = userInfo
+	b.Unlock()
+
 }

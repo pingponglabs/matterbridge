@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/42wim/matterbridge/bridge/config"
 	gomatrix "maunium.net/go/mautrix"
 	"maunium.net/go/mautrix/event"
 	id "maunium.net/go/mautrix/id"
@@ -34,12 +35,12 @@ func (b *AppServMatrix) initControlRoom() {
 	roomId := resp.RoomID.String()
 
 	b.sendRoomAvatarEvent(roomId)
-	b.setRoomInfo(controlRoom, &MatrixRoomInfo{
-		RoomName: controlRoom,
-		Alias:    roomId,
-		Members:  nil,
-		IsDirect: true,
-		RemoteId: controlRoom,
+	b.setRoomInfo(controlRoom, &ChannelInfo{
+		ChannelName:     controlRoom,
+		MtxRoomID:       roomId,
+		Members:         nil,
+		IsDirect:        true,
+		RemoteChannelID: controlRoom,
 	})
 
 	b.setRoomMap(roomId, controlRoom)
@@ -133,12 +134,12 @@ func (b *AppServMatrix) joinRoom(roomId, userID, Token string) error {
 }
 func (b *AppServMatrix) AddNewChannel(channel, roomId, remoteId string, isDirect bool) {
 
-	b.setRoomInfo(channel, &MatrixRoomInfo{
-		RoomName: channel,
-		Alias:    roomId,
-		Members:  []ChannelMember{},
-		IsDirect: isDirect,
-		RemoteId: remoteId,
+	b.setRoomInfo(channel, &ChannelInfo{
+		ChannelName:     channel,
+		MtxRoomID:       roomId,
+		Members:         map[string]ChannelMember{},
+		IsDirect:        isDirect,
+		RemoteChannelID: remoteId,
 	})
 }
 
@@ -212,6 +213,21 @@ func (b *AppServMatrix) inviteUserToRoom(roomId string, inviteId string) error {
 	}
 	return nil
 }
+func (b *AppServMatrix) RemoveUserFromRoom(reason string, mtxID, alias string) {
+	userId, ok := b.getVirtualUserInfo(mtxID)
+	if !ok {
+		log.Println(fmt.Errorf("user %s not exist on appservice database", mtxID))
+		return
+	}
+
+	_, err := b.apsCli.KickUser(id.RoomID(alias), &gomatrix.ReqKickUser{
+		Reason: reason,
+		UserID: id.UserID(userId.Id),
+	})
+	if err != nil {
+		log.Println(err)
+	}
+}
 func (b *AppServMatrix) removeUsersFromChannel(channel string, members []string) {
 	chanInfo, ok := b.getRoomInfo(channel)
 	if !ok {
@@ -219,12 +235,12 @@ func (b *AppServMatrix) removeUsersFromChannel(channel string, members []string)
 	}
 	for _, member := range members {
 
-		for i, v := range chanInfo.Members {
-			if v.Name == member {
-				chanInfo.Members = append(chanInfo.Members[:i], chanInfo.Members[i+1:]...)
-				break
-			}
+		if _, ok := chanInfo.Members[member]; ok {
+			b.Lock()
+			delete(chanInfo.Members, member)
+			b.Unlock()
 		}
+
 		userId, ok := b.getVirtualUserInfo(member)
 		if !ok {
 			log.Println(fmt.Errorf("user %s not exist on appservice database", member))
@@ -244,10 +260,17 @@ func (b *AppServMatrix) removeUsersFromChannel(channel string, members []string)
 func (b *AppServMatrix) getWhatsappName(channelJid string) string {
 	b.RLock()
 	defer b.RUnlock()
-	for i, v := range b.roomsInfo {
-		if v.RemoteId == channelJid {
+	for i, v := range b.channelsInfo {
+		if v.RemoteChannelID == channelJid {
 			return i
 		}
 	}
 	return ""
+}
+
+func (b *AppServMatrix) adjustChannel(rmsg *config.Message) {
+	switch b.RemoteProtocol {
+	case "discord":
+		rmsg.Channel = "ID:" + rmsg.Channel
+	}
 }

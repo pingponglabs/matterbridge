@@ -146,6 +146,7 @@ func (b *AppServMatrix) cacheDisplayName(mxid string, displayName string) string
 }
 
 // handleError converts errors into httpError.
+//
 //nolint:exhaustivestruct
 func handleError(err error) *httpError {
 	var mErr matrix.HTTPError
@@ -237,23 +238,23 @@ func (b *AppServMatrix) retry(f func() error) error {
 	}
 }
 
-func (b *AppServMatrix) setRoomInfo(channel string, roomInf *MatrixRoomInfo) {
+func (b *AppServMatrix) setRoomInfo(channel string, roomInf *ChannelInfo) {
 	b.Lock()
-	b.roomsInfo[channel] = roomInf
+	b.channelsInfo[channel] = roomInf
 	b.Unlock()
 
 }
-func (b *AppServMatrix) getRoomInfo(channel string) (*MatrixRoomInfo, bool) {
+func (b *AppServMatrix) getRoomInfo(channel string) (*ChannelInfo, bool) {
 	b.RLock()
-	roomInf, ok := b.roomsInfo[channel]
+	roomInf, ok := b.channelsInfo[channel]
 	b.RUnlock()
 	return roomInf, ok
 
 }
-func (b *AppServMatrix) getAllRoomInfo() []*MatrixRoomInfo {
-	roomsInfo := []*MatrixRoomInfo{}
+func (b *AppServMatrix) getAllRoomInfo() []*ChannelInfo {
+	roomsInfo := []*ChannelInfo{}
 	b.RLock()
-	for _, v := range b.roomsInfo {
+	for _, v := range b.channelsInfo {
 		roomsInfo = append(roomsInfo, v)
 	}
 	b.RUnlock()
@@ -263,8 +264,8 @@ func (b *AppServMatrix) getAllRoomInfo() []*MatrixRoomInfo {
 func (b *AppServMatrix) getroomsInfoAliasMap() map[string]string {
 	channels := make(map[string]string)
 	b.RLock()
-	for k, v := range b.roomsInfo {
-		channels[k] = v.Alias
+	for k, v := range b.channelsInfo {
+		channels[k] = v.MtxRoomID
 	}
 	b.RUnlock()
 	return channels

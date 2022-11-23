@@ -102,9 +102,9 @@ func (a *AppServMatrix) outcomingMention(protocol, text, htmlText string) (strin
 
 	prefix := "<a href=\"https://matrix.to/#/"
 	suffix := "</a>"
-	for i:=0;i<100;i++ {
+	for i := 0; i < 100; i++ {
 		index := strings.Index(htmlText, prefix)
-		if index==-1 {
+		if index == -1 {
 			break
 		}
 		if indexl := strings.Index(htmlText, suffix); indexl != -1 {
