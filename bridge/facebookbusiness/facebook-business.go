@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"strings"
 	"sync"
 	"time"
 
@@ -234,29 +235,82 @@ func (b *BfacebookBusiness) UploadMedia(image io.Reader) (*goinsta.UploadOptions
 
 }
 
+/*
+	if msg.Extra != nil {
+		if msg.Protocol == "appservice" {
+			msg.Text = ""
+		}
+		err := b.HandleMediaUpload(&msg)
+		if err != nil {
+			return "", err
+		}
+*/
+func (b *BfacebookBusiness) HandleMediaUpload(msg *config.Message) (string, string, error) {
+	if msg.Extra == nil {
+		return "", "", fmt.Errorf("nil extra map")
+	}
+
+	for _, f := range msg.Extra["file"] {
+		if fi, ok := f.(config.FileInfo); ok {
+			content := bytes.NewReader(*fi.Data)
+			//mtype := mime.TypeByExtension("." + sp[len(sp)-1])
+
+			typ := "image"
+			resp, err := b.MediaUpload(content, fi.Name)
+			if err != nil {
+				return resp.AttachmentID, typ, nil
+			}
+
+			b.Log.Debug(resp)
+			return resp.AttachmentID, typ, nil
+		}
+	}
+	return "", "", nil
+}
 func (b *BfacebookBusiness) Send(msg config.Message) (string, error) {
 	b.Log.Debugf("=> Receiving %#v", msg)
 	switch msg.Event {
 	case "facebook-event":
-		err := b.HandleFacebookEvent(msg)
-		return "", err
+		// TODO gorotune
+		go b.HandleFacebookEvent(msg)
+		return "", nil
 	}
 	for _, conversation := range b.Coversations {
 		if conversation.Name == msg.Channel {
-			msgID, err := b.SendMessage(conversation.CustomerSender.ID, msg.Text)
+			var msgContent string
+			var msgType string
+			var err error
+			if msg.Extra != nil {
+				if msg.Protocol == "appservice" {
+					msg.Text = ""
+				}
+				msgContent, msgType, err = b.HandleMediaUpload(&msg)
+				if err != nil {
+					return "", err
+				}
+			} else {
+				msgContent = msg.Text
+				msgType = "text"
+			}
+			// TODO add media handling
+			msgID, err := b.SendMessage(conversation.CustomerSender.ID, msgType, msgContent)
 			if err != nil {
 				return "", err
 			}
+
 			b.Lock()
 			b.SendMessageIdList[msgID] = true
 			b.Unlock()
+			return "", nil
 		}
 	}
+
 	return "", nil
 }
-func (b *BfacebookBusiness) HandleFacebookEvent(Msg config.Message) error {
+func (b *BfacebookBusiness) HandleFacebookEvent(Msg config.Message) {
+	time.Sleep(50 * time.Millisecond)
 	if Msg.Extra == nil {
-		return fmt.Errorf("empty facebook events data")
+		log.Println(fmt.Errorf("empty facebook events data"))
 	}
 	if events, ok := Msg.Extra["facebook-event"]; ok {
 		for _, v := range events {
@@ -278,31 +332,37 @@ func (b *BfacebookBusiness) HandleFacebookEvent(Msg config.Message) error {
 			case "instagram":
 				TargetId = b.Accounts[0].intagramBusinessAccount
 			default:
-				return nil
+				return
 			}
 			for _, entry := range event.Entry {
 				if entry.ID == TargetId {
-					for _, v := range entry.Messaging {
-						if v.Message.Text == "" || b.IsMessageDuplicate(v.Message.Mid) {
+					for _, msgEvent := range entry.Messaging {
+						if b.IsMessageDuplicate(msgEvent.Message.Mid) {
 							continue
 						}
-						for _, cv := range b.Coversations {
-							if _, ok := cv.Participents[v.Recipient.ID]; ok {
-								if vv, ok := cv.Participents[v.Sender.ID]; ok {
+						// TODO add media handling
+						for _, conversationInfo := range b.Coversations {
+							if _, ok := conversationInfo.Participents[msgEvent.Recipient.ID]; ok {
+								if senderInfo, ok := conversationInfo.Participents[msgEvent.Sender.ID]; ok {
 									configMessage := config.Message{
-										Text:     v.Message.Text,
-										Channel:  cv.Name,
-										Username: vv.Name,
-										UserID:   vv.ID,
+										Text:     "",
+										Channel:  conversationInfo.Name,
+										Username: senderInfo.Name,
+										UserID:   senderInfo.ID,
 										Avatar:   "",
 										Account:  b.Account,
 										Protocol: "facebookbusiness",
 									}
-									go func() {
-										time.Sleep(2 * time.Second)
+									if msgEvent.Message.Text != "" {
+										configMessage.Text = msgEvent.Message.Text
 										b.Remote <- configMessage
-
-									}()
+									}
+									if len(msgEvent.Message.Attachments) > 0 {
+										configMessage.Text = ""
+										b.HandleMediaEvent(&configMessage, msgEvent)
+										b.Remote <- configMessage
+									}
+									return
 								}
 							}
 						}
@@ -312,8 +372,24 @@ func (b *BfacebookBusiness) HandleFacebookEvent(Msg config.Message) error {
 		}
 	}
 
-	return nil
 }
+func (b *BfacebookBusiness) HandleMediaEvent(rmsg *config.Message, msgEvent Messaging) {
+	rmsg.Extra = make(map[string][]interface{})
+
+	for _, attachement := range msgEvent.Message.Attachments {
+		img, err := b.MediaDownload(attachement.Payload.URL)
+		if err != nil {
+			log.Println(err)
+			continue
+		}
+		sl := strings.Split(attachement.Payload.URL, "/")
+		base := strings.Split(sl[len(sl)-1], "?")
+		name := base[0]
+		helper.HandleDownloadData(b.Log, rmsg, name, "", attachement.Payload.URL, &img, b.General)
+
+	}
+}
+
 func (b *BfacebookBusiness) handleSyncUpdates() {
 
 	for msgData := range b.syncMsg {
