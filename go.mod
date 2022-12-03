@@ -9,6 +9,8 @@ require (
 	github.com/bwmarrin/discordgo v0.25.0
 	github.com/d5/tengo/v2 v2.12.0
 	github.com/davecgh/go-spew v1.1.1
+	github.com/dghubble/go-twitter v0.0.0-20221104224141-912508c3888b
+	github.com/dghubble/oauth1 v0.7.1
 	github.com/fsnotify/fsnotify v1.5.4
 	github.com/go-telegram-bot-api/telegram-bot-api/v5 v5.5.1
 	github.com/gomarkdown/markdown v0.0.0-20220607163217-45f7c050e2d1
@@ -18,6 +20,7 @@ require (
 	github.com/gorilla/websocket v1.5.0
 	github.com/harmony-development/shibshib v0.0.0-20220101224523-c98059d09cfa
 	github.com/hashicorp/golang-lru v0.5.4
+	github.com/joho/godotenv v1.3.0
 	github.com/jpillora/backoff v1.0.0
 	github.com/keybase/go-keybase-chat-bot v0.0.0-20220322223021-75d497527469
 	github.com/kyokomi/emoji/v2 v2.2.9
@@ -43,7 +46,7 @@ require (
 	github.com/skip2/go-qrcode v0.0.0-20200617195104-da1b6568686e
 	github.com/slack-go/slack v0.11.0
 	github.com/spf13/viper v1.12.0
-	github.com/stretchr/testify v1.7.2
+	github.com/stretchr/testify v1.8.1
 	github.com/vincent-petithory/dataurl v1.0.0
 	github.com/writeas/go-strip-markdown v2.0.1+incompatible
 	github.com/yaegashi/msgraph.go v0.1.4
@@ -68,9 +71,11 @@ require (
 	github.com/apex/log v1.9.0 // indirect
 	github.com/av-elier/go-decimal-to-rational v0.0.0-20191127152832-89e6aad02ecf // indirect
 	github.com/blang/semver v3.5.1+incompatible // indirect
+	github.com/cenkalti/backoff/v4 v4.1.3 // indirect
 	github.com/chromedp/cdproto v0.0.0-20220530001853-c0f376d894d1 // indirect
 	github.com/chromedp/chromedp v0.8.2 // indirect
 	github.com/chromedp/sysutil v1.0.0 // indirect
+	github.com/dghubble/sling v1.4.0 // indirect
 	github.com/dustin/go-humanize v1.0.0 // indirect
 	github.com/dyatlov/go-opengraph v0.0.0-20210112100619-dae8665a5b09 // indirect
 	github.com/francoispqt/gojay v1.2.13 // indirect
@@ -80,6 +85,7 @@ require (
 	github.com/gobwas/ws v1.1.0 // indirect
 	github.com/golang-jwt/jwt v3.2.2+incompatible // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
+	github.com/google/go-querystring v1.1.0 // indirect
 	github.com/google/uuid v1.3.0 // indirect
 	github.com/gopackage/ddp v0.0.3 // indirect
 	github.com/graph-gophers/graphql-go v1.3.0 // indirect

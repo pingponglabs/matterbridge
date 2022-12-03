@@ -19,6 +19,14 @@ func (a *AppServMatrix) controllAction(msg config.Message) {
 				ChannelName:    msg.ChannelName,
 			},
 		}
+	case "facebook-event","twitter-event":
+		msg.Protocol = "appservice"
+		msg.TargetPlatform = a.RemoteProtocol
+		msg.Username = a.Name
+		msg.UserID = a.UserID
+		msg.Account = a.Account
+		a.Remote <- msg
+	
 	}
 
 
