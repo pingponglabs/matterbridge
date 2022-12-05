@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"net/http"
 	"strings"
 	"sync"
 	"time"
@@ -131,6 +132,7 @@ type ConversationInfo struct {
 	Participents   map[string]SenderInfo
 	PageSender     SenderInfo
 	CustomerSender SenderInfo
+	Platform       string
 	ChannelsUsers  []SenderInfo
 }
 
@@ -143,11 +145,13 @@ func (b *BfacebookBusiness) ParseConversation(conversation MessagesResp) []Conve
 			Participents:   map[string]SenderInfo{},
 			PageSender:     SenderInfo{},
 			CustomerSender: SenderInfo{},
+			Platform:       "facebook",
 			ChannelsUsers:  conversation.Participants.Data,
 		}
 		for _, v := range conversation.Participants.Data {
 			if v.Name == "" {
 				v.Name = v.Username
+				convInfo.Platform = "instagram"
 			}
 			convInfo.Participents[v.ID] = v
 			if v.ID == b.Accounts[0].pageID {
@@ -240,12 +244,12 @@ func (b *BfacebookBusiness) UploadMedia(image io.Reader) (*goinsta.UploadOptions
 		if msg.Protocol == "appservice" {
 			msg.Text = ""
 		}
-		err := b.HandleMediaUpload(&msg)
+		err := b.HandleFacebookMediaUpload(&msg)
 		if err != nil {
 			return "", err
 		}
 */
-func (b *BfacebookBusiness) HandleMediaUpload(msg *config.Message) (string, string, error) {
+func (b *BfacebookBusiness) HandleFacebookMediaUpload(msg *config.Message) (string, string, error) {
 	if msg.Extra == nil {
 		return "", "", fmt.Errorf("nil extra map")
 	}
@@ -284,8 +288,20 @@ func (b *BfacebookBusiness) Send(msg config.Message) (string, error) {
 				if msg.Protocol == "appservice" {
 					msg.Text = ""
 				}
-				msgContent, msgType, err = b.HandleMediaUpload(&msg)
-				if err != nil {
+				switch conversation.Platform {
+				case "facebook":
+					msgContent, msgType, err = b.HandleFacebookMediaUpload(&msg)
+					if err != nil {
+						return "", err
+					}
+				case "instagram":
+					msgID, err := b.HandleInstaMediaUpload(&msg, conversation.CustomerSender.ID)
+					if err != nil {
+						return "", err
+					}
+					b.Lock()
+					b.SendMessageIdList[msgID] = true
+					b.Unlock()
 					return "", err
 				}
 			} else {
@@ -359,7 +375,7 @@ func (b *BfacebookBusiness) HandleFacebookEvent(Msg config.Message) {
 									}
 									if len(msgEvent.Message.Attachments) > 0 {
 										configMessage.Text = ""
-										b.HandleMediaEvent(&configMessage, msgEvent)
+										b.HandleMediaEvent(&configMessage, event.Object, msgEvent)
 										b.Remote <- configMessage
 									}
 									return
@@ -373,7 +389,7 @@ func (b *BfacebookBusiness) HandleFacebookEvent(Msg config.Message) {
 	}
 
 }
-func (b *BfacebookBusiness) HandleMediaEvent(rmsg *config.Message, msgEvent Messaging) {
+func (b *BfacebookBusiness) HandleMediaEvent(rmsg *config.Message, platform string, msgEvent Messaging) {
 	rmsg.Extra = make(map[string][]interface{})
 
 	for _, attachement := range msgEvent.Message.Attachments {
@@ -382,9 +398,21 @@ func (b *BfacebookBusiness) HandleMediaEvent(rmsg *config.Message, msgEvent Mess
 			log.Println(err)
 			continue
 		}
-		sl := strings.Split(attachement.Payload.URL, "/")
-		base := strings.Split(sl[len(sl)-1], "?")
-		name := base[0]
+		var name string
+		switch platform {
+		case "page":
+
+			sl := strings.Split(attachement.Payload.URL, "/")
+			base := strings.Split(sl[len(sl)-1], "?")
+			name = base[0]
+		case "instagram":
+			sl := strings.Split(http.DetectContentType(img[:512]), "/")
+			if len(sl) > 1 {
+				name = msgEvent.Message.Mid + "." + sl[1]
+			} else {
+				name = msgEvent.Message.Mid + "." + sl[1]
+			}
+		}
 		helper.HandleDownloadData(b.Log, rmsg, name, "", attachement.Payload.URL, &img, b.General)
 
 	}
