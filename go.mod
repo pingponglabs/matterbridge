@@ -5,6 +5,7 @@ require (
 	github.com/Benau/tgsconverter v0.0.0-20210809170556-99f4a4f6337f
 	github.com/Davincible/goinsta v0.0.0-20220425072628-96aad7267204
 	github.com/Philipp15b/go-steam v1.0.1-0.20200727090957-6ae9b3c0a560
+	github.com/Rhymen/go-whatsapp v0.1.1
 	github.com/SevereCloud/vksdk/v2 v2.14.1
 	github.com/bwmarrin/discordgo v0.25.0
 	github.com/d5/tengo/v2 v2.12.0
@@ -63,13 +64,13 @@ require (
 require (
 	filippo.io/edwards25519 v1.0.0-rc.1 // indirect
 	github.com/Benau/go_rlottie v0.0.0-20210807002906-98c1b2421989 // indirect
-	github.com/Davincible/goinsta/v3 v3.1.3 // indirect
+	github.com/Davincible/goinsta/v3 v3.2.5 // indirect
 	github.com/Jeffail/gabs v1.4.0 // indirect
 	github.com/apex/log v1.9.0 // indirect
 	github.com/av-elier/go-decimal-to-rational v0.0.0-20191127152832-89e6aad02ecf // indirect
 	github.com/blang/semver v3.5.1+incompatible // indirect
-	github.com/chromedp/cdproto v0.0.0-20220530001853-c0f376d894d1 // indirect
-	github.com/chromedp/chromedp v0.8.2 // indirect
+	github.com/chromedp/cdproto v0.0.0-20221126224343-3a0787b8dd28 // indirect
+	github.com/chromedp/chromedp v0.8.6 // indirect
 	github.com/chromedp/sysutil v1.0.0 // indirect
 	github.com/dustin/go-humanize v1.0.0 // indirect
 	github.com/dyatlov/go-opengraph v0.0.0-20210112100619-dae8665a5b09 // indirect
@@ -146,7 +147,7 @@ require (
 	golang.org/x/crypto v0.0.0-20220513210258-46612604a0f9 // indirect
 	golang.org/x/mod v0.6.0-dev.0.20220106191415-9b9b3d81d5e3 // indirect
 	golang.org/x/net v0.0.0-20220520000938-2e3eb7b945c2 // indirect
-	golang.org/x/sys v0.0.0-20220608164250-635b8c9b7f68 // indirect
+	golang.org/x/sys v0.3.0 // indirect
 	golang.org/x/term v0.0.0-20210927222741-03fcf44c2211 // indirect
 	golang.org/x/time v0.0.0-20201208040808-7e3f01d25324 // indirect
 	golang.org/x/tools v0.1.10 // indirect
@@ -168,8 +169,6 @@ require (
 	rsc.io/qr v0.2.0 // indirect
 )
 
-replace github.com/Davincible/goinsta => /home/ibrahim/legacy/goinsta
-
-//replace github.com/matrix-org/gomatrix => github.com/matterbridge/gomatrix v0.0.0-20220205235239-607eb9ee6419
+replace github.com/Davincible/goinsta => github.com/ibrahimk9000/goinsta v0.0.0-20221206145429-80984229aea5
 
 go 1.17

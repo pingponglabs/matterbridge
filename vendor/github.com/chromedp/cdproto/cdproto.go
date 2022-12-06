@@ -150,6 +150,7 @@ const (
 	CommandCSSSetMediaText                                 = css.CommandSetMediaText
 	CommandCSSSetContainerQueryText                        = css.CommandSetContainerQueryText
 	CommandCSSSetSupportsText                              = css.CommandSetSupportsText
+	CommandCSSSetScopeText                                 = css.CommandSetScopeText
 	CommandCSSSetRuleSelector                              = css.CommandSetRuleSelector
 	CommandCSSSetStyleSheetText                            = css.CommandSetStyleSheetText
 	CommandCSSSetStyleTexts                                = css.CommandSetStyleTexts
@@ -199,6 +200,7 @@ const (
 	CommandDOMPushNodesByBackendIDsToFrontend              = dom.CommandPushNodesByBackendIDsToFrontend
 	CommandDOMQuerySelector                                = dom.CommandQuerySelector
 	CommandDOMQuerySelectorAll                             = dom.CommandQuerySelectorAll
+	CommandDOMGetTopLayerElements                          = dom.CommandGetTopLayerElements
 	CommandDOMRedo                                         = dom.CommandRedo
 	CommandDOMRemoveAttribute                              = dom.CommandRemoveAttribute
 	CommandDOMRemoveNode                                   = dom.CommandRemoveNode
@@ -229,6 +231,7 @@ const (
 	EventDOMDocumentUpdated                                = "DOM.documentUpdated"
 	EventDOMInlineStyleInvalidated                         = "DOM.inlineStyleInvalidated"
 	EventDOMPseudoElementAdded                             = "DOM.pseudoElementAdded"
+	EventDOMTopLayerElementsUpdated                        = "DOM.topLayerElementsUpdated"
 	EventDOMPseudoElementRemoved                           = "DOM.pseudoElementRemoved"
 	EventDOMSetChildNodes                                  = "DOM.setChildNodes"
 	EventDOMShadowRootPopped                               = "DOM.shadowRootPopped"
@@ -267,6 +270,8 @@ const (
 	CommandDebuggerEvaluateOnCallFrame                     = debugger.CommandEvaluateOnCallFrame
 	CommandDebuggerGetPossibleBreakpoints                  = debugger.CommandGetPossibleBreakpoints
 	CommandDebuggerGetScriptSource                         = debugger.CommandGetScriptSource
+	CommandDebuggerDisassembleWasmModule                   = debugger.CommandDisassembleWasmModule
+	CommandDebuggerNextWasmDisassemblyChunk                = debugger.CommandNextWasmDisassemblyChunk
 	CommandDebuggerGetStackTrace                           = debugger.CommandGetStackTrace
 	CommandDebuggerPause                                   = debugger.CommandPause
 	CommandDebuggerRemoveBreakpoint                        = debugger.CommandRemoveBreakpoint
@@ -338,8 +343,6 @@ const (
 	EventFetchRequestPaused                                = "Fetch.requestPaused"
 	EventFetchAuthRequired                                 = "Fetch.authRequired"
 	CommandHeadlessExperimentalBeginFrame                  = headlessexperimental.CommandBeginFrame
-	CommandHeadlessExperimentalDisable                     = headlessexperimental.CommandDisable
-	CommandHeadlessExperimentalEnable                      = headlessexperimental.CommandEnable
 	CommandHeapProfilerAddInspectedHeapObject              = heapprofiler.CommandAddInspectedHeapObject
 	CommandHeapProfilerCollectGarbage                      = heapprofiler.CommandCollectGarbage
 	CommandHeapProfilerDisable                             = heapprofiler.CommandDisable
@@ -518,6 +521,7 @@ const (
 	CommandPageGetInstallabilityErrors                     = page.CommandGetInstallabilityErrors
 	CommandPageGetManifestIcons                            = page.CommandGetManifestIcons
 	CommandPageGetAppID                                    = page.CommandGetAppID
+	CommandPageGetAdScriptID                               = page.CommandGetAdScriptID
 	CommandPageGetFrameTree                                = page.CommandGetFrameTree
 	CommandPageGetLayoutMetrics                            = page.CommandGetLayoutMetrics
 	CommandPageGetNavigationHistory                        = page.CommandGetNavigationHistory
@@ -589,12 +593,9 @@ const (
 	CommandProfilerSetSamplingInterval                     = profiler.CommandSetSamplingInterval
 	CommandProfilerStart                                   = profiler.CommandStart
 	CommandProfilerStartPreciseCoverage                    = profiler.CommandStartPreciseCoverage
-	CommandProfilerStartTypeProfile                        = profiler.CommandStartTypeProfile
 	CommandProfilerStop                                    = profiler.CommandStop
 	CommandProfilerStopPreciseCoverage                     = profiler.CommandStopPreciseCoverage
-	CommandProfilerStopTypeProfile                         = profiler.CommandStopTypeProfile
 	CommandProfilerTakePreciseCoverage                     = profiler.CommandTakePreciseCoverage
-	CommandProfilerTakeTypeProfile                         = profiler.CommandTakeTypeProfile
 	EventProfilerConsoleProfileFinished                    = "Profiler.consoleProfileFinished"
 	EventProfilerConsoleProfileStarted                     = "Profiler.consoleProfileStarted"
 	EventProfilerPreciseCoverageDeltaUpdate                = "Profiler.preciseCoverageDeltaUpdate"
@@ -650,24 +651,36 @@ const (
 	EventServiceWorkerWorkerVersionUpdated                 = "ServiceWorker.workerVersionUpdated"
 	CommandStorageGetStorageKeyForFrame                    = storage.CommandGetStorageKeyForFrame
 	CommandStorageClearDataForOrigin                       = storage.CommandClearDataForOrigin
+	CommandStorageClearDataForStorageKey                   = storage.CommandClearDataForStorageKey
 	CommandStorageGetCookies                               = storage.CommandGetCookies
 	CommandStorageSetCookies                               = storage.CommandSetCookies
 	CommandStorageClearCookies                             = storage.CommandClearCookies
 	CommandStorageGetUsageAndQuota                         = storage.CommandGetUsageAndQuota
 	CommandStorageOverrideQuotaForOrigin                   = storage.CommandOverrideQuotaForOrigin
 	CommandStorageTrackCacheStorageForOrigin               = storage.CommandTrackCacheStorageForOrigin
+	CommandStorageTrackCacheStorageForStorageKey           = storage.CommandTrackCacheStorageForStorageKey
 	CommandStorageTrackIndexedDBForOrigin                  = storage.CommandTrackIndexedDBForOrigin
+	CommandStorageTrackIndexedDBForStorageKey              = storage.CommandTrackIndexedDBForStorageKey
 	CommandStorageUntrackCacheStorageForOrigin             = storage.CommandUntrackCacheStorageForOrigin
+	CommandStorageUntrackCacheStorageForStorageKey         = storage.CommandUntrackCacheStorageForStorageKey
 	CommandStorageUntrackIndexedDBForOrigin                = storage.CommandUntrackIndexedDBForOrigin
+	CommandStorageUntrackIndexedDBForStorageKey            = storage.CommandUntrackIndexedDBForStorageKey
 	CommandStorageGetTrustTokens                           = storage.CommandGetTrustTokens
 	CommandStorageClearTrustTokens                         = storage.CommandClearTrustTokens
 	CommandStorageGetInterestGroupDetails                  = storage.CommandGetInterestGroupDetails
 	CommandStorageSetInterestGroupTracking                 = storage.CommandSetInterestGroupTracking
+	CommandStorageGetSharedStorageMetadata                 = storage.CommandGetSharedStorageMetadata
+	CommandStorageGetSharedStorageEntries                  = storage.CommandGetSharedStorageEntries
+	CommandStorageSetSharedStorageEntry                    = storage.CommandSetSharedStorageEntry
+	CommandStorageDeleteSharedStorageEntry                 = storage.CommandDeleteSharedStorageEntry
+	CommandStorageClearSharedStorageEntries                = storage.CommandClearSharedStorageEntries
+	CommandStorageSetSharedStorageTracking                 = storage.CommandSetSharedStorageTracking
 	EventStorageCacheStorageContentUpdated                 = "Storage.cacheStorageContentUpdated"
 	EventStorageCacheStorageListUpdated                    = "Storage.cacheStorageListUpdated"
 	EventStorageIndexedDBContentUpdated                    = "Storage.indexedDBContentUpdated"
 	EventStorageIndexedDBListUpdated                       = "Storage.indexedDBListUpdated"
 	EventStorageInterestGroupAccessed                      = "Storage.interestGroupAccessed"
+	EventStorageSharedStorageAccessed                      = "Storage.sharedStorageAccessed"
 	CommandSystemInfoGetInfo                               = systeminfo.CommandGetInfo
 	CommandSystemInfoGetProcessInfo                        = systeminfo.CommandGetProcessInfo
 	CommandTargetActivateTarget                            = target.CommandActivateTarget
@@ -723,6 +736,7 @@ const (
 	CommandWebAuthnEnable                                  = webauthn.CommandEnable
 	CommandWebAuthnDisable                                 = webauthn.CommandDisable
 	CommandWebAuthnAddVirtualAuthenticator                 = webauthn.CommandAddVirtualAuthenticator
+	CommandWebAuthnSetResponseOverrideBits                 = webauthn.CommandSetResponseOverrideBits
 	CommandWebAuthnRemoveVirtualAuthenticator              = webauthn.CommandRemoveVirtualAuthenticator
 	CommandWebAuthnAddCredential                           = webauthn.CommandAddCredential
 	CommandWebAuthnGetCredential                           = webauthn.CommandGetCredential
@@ -985,6 +999,9 @@ func UnmarshalMessage(msg *Message) (interface{}, error) {
 	case CommandCSSSetSupportsText:
 		v = new(css.SetSupportsTextReturns)
 
+	case CommandCSSSetScopeText:
+		v = new(css.SetScopeTextReturns)
+
 	case CommandCSSSetRuleSelector:
 		v = new(css.SetRuleSelectorReturns)
 
@@ -1132,6 +1149,9 @@ func UnmarshalMessage(msg *Message) (interface{}, error) {
 	case CommandDOMQuerySelectorAll:
 		v = new(dom.QuerySelectorAllReturns)
 
+	case CommandDOMGetTopLayerElements:
+		v = new(dom.GetTopLayerElementsReturns)
+
 	case CommandDOMRedo:
 		return emptyVal, nil
 
@@ -1221,6 +1241,9 @@ func UnmarshalMessage(msg *Message) (interface{}, error) {
 
 	case EventDOMPseudoElementAdded:
 		v = new(dom.EventPseudoElementAdded)
+
+	case EventDOMTopLayerElementsUpdated:
+		v = new(dom.EventTopLayerElementsUpdated)
 
 	case EventDOMPseudoElementRemoved:
 		v = new(dom.EventPseudoElementRemoved)
@@ -1335,6 +1358,12 @@ func UnmarshalMessage(msg *Message) (interface{}, error) {
 
 	case CommandDebuggerGetScriptSource:
 		v = new(debugger.GetScriptSourceReturns)
+
+	case CommandDebuggerDisassembleWasmModule:
+		v = new(debugger.DisassembleWasmModuleReturns)
+
+	case CommandDebuggerNextWasmDisassemblyChunk:
+		v = new(debugger.NextWasmDisassemblyChunkReturns)
 
 	case CommandDebuggerGetStackTrace:
 		v = new(debugger.GetStackTraceReturns)
@@ -1548,12 +1577,6 @@ func UnmarshalMessage(msg *Message) (interface{}, error) {
 
 	case CommandHeadlessExperimentalBeginFrame:
 		v = new(headlessexperimental.BeginFrameReturns)
-
-	case CommandHeadlessExperimentalDisable:
-		return emptyVal, nil
-
-	case CommandHeadlessExperimentalEnable:
-		return emptyVal, nil
 
 	case CommandHeapProfilerAddInspectedHeapObject:
 		return emptyVal, nil
@@ -2089,6 +2112,9 @@ func UnmarshalMessage(msg *Message) (interface{}, error) {
 	case CommandPageGetAppID:
 		v = new(page.GetAppIDReturns)
 
+	case CommandPageGetAdScriptID:
+		v = new(page.GetAdScriptIDReturns)
+
 	case CommandPageGetFrameTree:
 		v = new(page.GetFrameTreeReturns)
 
@@ -2302,23 +2328,14 @@ func UnmarshalMessage(msg *Message) (interface{}, error) {
 	case CommandProfilerStartPreciseCoverage:
 		v = new(profiler.StartPreciseCoverageReturns)
 
-	case CommandProfilerStartTypeProfile:
-		return emptyVal, nil
-
 	case CommandProfilerStop:
 		v = new(profiler.StopReturns)
 
 	case CommandProfilerStopPreciseCoverage:
 		return emptyVal, nil
 
-	case CommandProfilerStopTypeProfile:
-		return emptyVal, nil
-
 	case CommandProfilerTakePreciseCoverage:
 		v = new(profiler.TakePreciseCoverageReturns)
-
-	case CommandProfilerTakeTypeProfile:
-		v = new(profiler.TakeTypeProfileReturns)
 
 	case EventProfilerConsoleProfileFinished:
 		v = new(profiler.EventConsoleProfileFinished)
@@ -2485,6 +2502,9 @@ func UnmarshalMessage(msg *Message) (interface{}, error) {
 	case CommandStorageClearDataForOrigin:
 		return emptyVal, nil
 
+	case CommandStorageClearDataForStorageKey:
+		return emptyVal, nil
+
 	case CommandStorageGetCookies:
 		v = new(storage.GetCookiesReturns)
 
@@ -2503,13 +2523,25 @@ func UnmarshalMessage(msg *Message) (interface{}, error) {
 	case CommandStorageTrackCacheStorageForOrigin:
 		return emptyVal, nil
 
+	case CommandStorageTrackCacheStorageForStorageKey:
+		return emptyVal, nil
+
 	case CommandStorageTrackIndexedDBForOrigin:
+		return emptyVal, nil
+
+	case CommandStorageTrackIndexedDBForStorageKey:
 		return emptyVal, nil
 
 	case CommandStorageUntrackCacheStorageForOrigin:
 		return emptyVal, nil
 
+	case CommandStorageUntrackCacheStorageForStorageKey:
+		return emptyVal, nil
+
 	case CommandStorageUntrackIndexedDBForOrigin:
+		return emptyVal, nil
+
+	case CommandStorageUntrackIndexedDBForStorageKey:
 		return emptyVal, nil
 
 	case CommandStorageGetTrustTokens:
@@ -2522,6 +2554,24 @@ func UnmarshalMessage(msg *Message) (interface{}, error) {
 		v = new(storage.GetInterestGroupDetailsReturns)
 
 	case CommandStorageSetInterestGroupTracking:
+		return emptyVal, nil
+
+	case CommandStorageGetSharedStorageMetadata:
+		v = new(storage.GetSharedStorageMetadataReturns)
+
+	case CommandStorageGetSharedStorageEntries:
+		v = new(storage.GetSharedStorageEntriesReturns)
+
+	case CommandStorageSetSharedStorageEntry:
+		return emptyVal, nil
+
+	case CommandStorageDeleteSharedStorageEntry:
+		return emptyVal, nil
+
+	case CommandStorageClearSharedStorageEntries:
+		return emptyVal, nil
+
+	case CommandStorageSetSharedStorageTracking:
 		return emptyVal, nil
 
 	case EventStorageCacheStorageContentUpdated:
@@ -2538,6 +2588,9 @@ func UnmarshalMessage(msg *Message) (interface{}, error) {
 
 	case EventStorageInterestGroupAccessed:
 		v = new(storage.EventInterestGroupAccessed)
+
+	case EventStorageSharedStorageAccessed:
+		v = new(storage.EventSharedStorageAccessed)
 
 	case CommandSystemInfoGetInfo:
 		v = new(systeminfo.GetInfoReturns)
@@ -2703,6 +2756,9 @@ func UnmarshalMessage(msg *Message) (interface{}, error) {
 
 	case CommandWebAuthnAddVirtualAuthenticator:
 		v = new(webauthn.AddVirtualAuthenticatorReturns)
+
+	case CommandWebAuthnSetResponseOverrideBits:
+		return emptyVal, nil
 
 	case CommandWebAuthnRemoveVirtualAuthenticator:
 		return emptyVal, nil
