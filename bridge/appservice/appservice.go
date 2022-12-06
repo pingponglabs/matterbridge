@@ -1097,7 +1097,7 @@ func (b *AppServMatrix) handleEvent(ev *matrix.Event) {
 				rmsg.Event = "direct_msg"
 			}
 			rmsg.ChannelId = channelInfo.RemoteId
-			if b.RemoteProtocol == "telegram" || b.RemoteProtocol == "whatsapp" {
+			if b.RemoteProtocol == "telegram" || b.RemoteProtocol == "whatsapp" || b.RemoteProtocol == "twitter" {
 				rmsg.Channel = rmsg.ChannelId
 			}
 			b.RUnlock()
@@ -1257,20 +1257,12 @@ func (b *AppServMatrix) handleUploadFile(msg *config.Message, channel string, fi
 			return
 		}
 	}
-	username := newMatrixUsername(msg.Username)
 	content := bytes.NewReader(*fi.Data)
 	sp := strings.Split(fi.Name, ".")
 	mtype := mime.TypeByExtension("." + sp[len(sp)-1])
 	// image and video uploads send no username, we have to do this ourself here #715
-	err := b.retry(func() error {
-		_, err := mc.SendFormattedText(channel, username.plain+fi.Comment, username.formatted+fi.Comment)
 
-		return err
-	})
-	if err != nil {
-		b.Log.Errorf("file comment failed: %#v", err)
-	}
-
+	var err error
 	b.Log.Debugf("uploading file: %s %s", fi.Name, mtype)
 
 	var res *matrix.RespMediaUpload

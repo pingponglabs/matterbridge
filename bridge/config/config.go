@@ -190,6 +190,8 @@ type Protocol struct {
 	ImportProfilePath string // instagram
 	TwoFactorCode     string // instagram
 
+	Oauth1Token  string  // twitter
+	Oauth1Secret string  // twitter
 }
 
 type ChannelOptions struct {
@@ -248,6 +250,7 @@ type BridgeValues struct {
 	Appservice         map[string]Protocol
 	Instagram          map[string]Protocol
 	Facebookbusiness   map[string]Protocol
+	Twitter          map[string]Protocol
 	General            Protocol
 	Tengo              Tengo
 	Gateway            []Gateway
