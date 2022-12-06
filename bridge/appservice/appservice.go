@@ -1250,7 +1250,12 @@ func (b *AppServMatrix) handleUploadFiles(msg *config.Message, channel string) (
 func (b *AppServMatrix) handleUploadFile(msg *config.Message, channel string, fi *config.FileInfo) {
 	mc, errmtx := b.newVirtualUserMtxClient(msg.Username)
 	if errmtx != nil {
-		b.Log.Errorf("couldn't mark message as read %s", errmtx.Error())
+		b.Log.Debug(errmtx)
+		mc, errmtx = matrix.NewClient(b.GetString("Server"), string(b.apsCli.UserID), b.apsCli.AccessToken)
+		if errmtx != nil {
+			b.Log.Debug(errmtx)
+			return
+		}
 	}
 	username := newMatrixUsername(msg.Username)
 	content := bytes.NewReader(*fi.Data)
