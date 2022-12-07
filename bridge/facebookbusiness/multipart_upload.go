@@ -51,7 +51,7 @@ func CreateFormImage(w *multipart.Writer, contentType, fieldname, filename strin
 }
 
 // Creates a new file upload http request with optional extra params
-func newfileUploadRequest(uri, fileName string, message *SendImageJson, r io.Reader) (*http.Request, error) {
+func newfileUploadRequest(uri, fileName string, message *SendMessageJson, r io.Reader) (*http.Request, error) {
 
 	body := new(bytes.Buffer)
 	writer := multipart.NewWriter(body)
@@ -88,14 +88,15 @@ func newfileUploadRequest(uri, fileName string, message *SendImageJson, r io.Rea
 	return req, nil
 }
 
-func (b *BfacebookBusiness) MediaUpload(r io.Reader, name string) (MediaUploadResp, error) {
-	Attach := &SendImageJson{Attachment{
-		Type: "image",
+func (b *BfacebookBusiness) MediaUpload(r io.Reader, name, typ string) (MediaUploadResp, error) {
+	Attach := &SendMessageJson{}
+	Attach.Attachment = &Attachment{
+		Type: typ,
 		Payload: Payload{
 			IsReusable: true,
 		},
-	},
 	}
+
 	request, err := newfileUploadRequest("https://graph.facebook.com/v2.10/me/message_attachments", name, Attach, r)
 	if err != nil {
 		return MediaUploadResp{}, err
@@ -135,7 +136,7 @@ func (b *BfacebookBusiness) HandleInstaMediaUpload(msg *config.Message, recipien
 			content := bytes.NewReader(*fi.Data)
 			//mtype := mime.TypeByExtension("." + sp[len(sp)-1])
 
-			resp, err := b.InstaMediaUpload(content, fi.Name, recipientID)
+			resp, err := b.InstaMediaUpload(content, fi.Name, recipientID, fi.URL)
 			if err != nil {
 				return resp, err
 			}
@@ -147,12 +148,25 @@ func (b *BfacebookBusiness) HandleInstaMediaUpload(msg *config.Message, recipien
 	return "", nil
 }
 
-func (b *BfacebookBusiness) InstaMediaUpload(r io.Reader, name, recipientID string) (string, error) {
+func (b *BfacebookBusiness) InstaMediaUpload(r io.Reader, name, recipientID, url string) (string, error) {
+	mediaExt := ""
+	mediaType := ""
+	if sl := strings.Split(name, "."); len(sl) > 1 {
+		mediaExt = sl[len(sl)-1]
+	}
+
+	switch mediaExt {
+	case "jpg", "png", "jpeg":
+		mediaType = "image"
+	}
 	fbUrl := fmt.Sprintf("https://graph.facebook.com/v14.0/%s/messages", b.Accounts[0].pageID)
 	RecipientParams := &SendRecipientJson{ID: recipientID}
-	SendImageParam := &SendImageJson{
-		Attachment: Attachment{
-			Type: "image",
+	SendImageParam := &SendMessageJson{
+		Attachment: &Attachment{
+			Type: mediaType,
+			Payload: Payload{
+				URL: url,
+			},
 		},
 	}
 	recpt, err := json.Marshal(RecipientParams)

@@ -1,11 +1,14 @@
 package bfacebookbusiness
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"log"
+	"strings"
 	"time"
 
+	"github.com/42wim/matterbridge/bridge/config"
 	fb "github.com/huandu/facebook/v2"
 )
 
@@ -137,11 +140,11 @@ type SendRecipientJson struct {
 }
 
 type SendMessageJson struct {
-	Text string `json:"text,omitempty"`
+	Text       string     `json:"text,omitempty"`
+	Attachment *Attachment `json:"attachment,omitempty"`
 }
 
-type SendImageJson struct {
-	Attachment Attachment `json:"attachment,omitempty"`
+type SendMediaJson struct {
 }
 
 type MessageSendResp struct {
@@ -149,32 +152,143 @@ type MessageSendResp struct {
 	MessageID   string `json:"message_id,omitempty"`
 }
 
-func (b *BfacebookBusiness) SendMessage(recipientID, msgTyp string, msgContent string) (string, error) {
-	RecipientParams := SendRecipientJson{ID: recipientID}
-	var MessgeParams interface{}
-	switch msgTyp {
-	case "image":
-		MessgeParams = SendImageJson{
-			Attachment: Attachment{
-				Type: msgTyp,
-				Payload: Payload{
-					AttachmentID: msgContent,
-				},
-			},
-		}
-	case "text":
+type sendParamsRaw struct {
+	link        string
+	recipientID SendRecipientJson
+	sendMessage SendMessageJson
+}
 
-		MessgeParams = SendMessageJson{Text: msgContent}
+func (b *BfacebookBusiness) PrepareSendParams(msg config.Message, conversation ConversationInfo) []sendParamsRaw {
+	sendParams := []sendParamsRaw{}
+	recipientParam := SendRecipientJson{ID: conversation.CustomerSender.ID}
+
+	if msg.Extra == nil {
+		sendMessageParam := SendMessageJson{Text: msg.Text}
+		sendParams = append(sendParams, sendParamsRaw{
+			link:        "/me/messages",
+			recipientID: recipientParam,
+			sendMessage: sendMessageParam,
+		})
+		return sendParams
 	}
+	if msg.Protocol == "appservice" {
+		msg.Text = ""
+	}
+	for _, f := range msg.Extra["file"] {
+		if fi, ok := f.(config.FileInfo); ok {
+			content := bytes.NewReader(*fi.Data)
+			_, typ := GetMediaTypeInfo(fi.Name)
+
+			switch conversation.Platform {
+			case "facebook":
+				resp, err := b.MediaUpload(content, fi.Name, typ)
+				if err != nil {
+					log.Println(err)
+					continue
+				}
+				sendMessageParam := SendMessageJson{
+					Attachment: &Attachment{
+						Type: typ,
+						Payload: Payload{
+							AttachmentID: resp.AttachmentID,
+						},
+					},
+				}
+				sendParams = append(sendParams, sendParamsRaw{
+					link:        "/me/messages",
+					recipientID: recipientParam,
+					sendMessage: sendMessageParam,
+				})
+			case "instagram":
+				sendMessageParam := SendMessageJson{
+					Attachment: &Attachment{
+						Type: typ,
+						Payload: Payload{
+							URL: fi.URL,
+						},
+					},
+				}
+				sendParams = append(sendParams, sendParamsRaw{
+					link:        fmt.Sprintf("%s/messages", b.Accounts[0].pageID),
+					recipientID: recipientParam,
+					sendMessage: sendMessageParam,
+				})
+			}
+
+		}
+	}
+	return sendParams
+}
+
+func GetMediaTypeInfo(name string) (string, string) {
+	mediaExt := ""
+	typ := ""
+	if sl := strings.Split(name, "."); len(sl) > 1 {
+		mediaExt = sl[len(sl)-1]
+	}
+	switch mediaExt {
+	case "jpg", "png", "jpeg":
+		typ = "image"
+	}
+	return mediaExt, typ
+}
+
+func (b *BfacebookBusiness) SendMessage(params sendParamsRaw) (string, error) {
+
+	recpt, err := json.Marshal(params.recipientID)
+	if err != nil {
+		return "", err
+	}
+	message, err := json.Marshal(params.sendMessage)
+	if err != nil {
+		return "", err
+	}
+	res, err := fb.Post(params.link, fb.Params{
+		"recipient": string(recpt), "message": string(message),
+		"access_token": b.Accounts[0].pageAccessToken,
+	})
+	if err != nil {
+		return "", err
+	}
+	if v, ok := res["message_id"]; ok {
+		if msgId, ok := v.(string); ok {
+			return msgId, nil
+		}
+	}
+	log.Println(res)
+	return "", fmt.Errorf("empty facebook send messageId")
+}
+func (b *BfacebookBusiness) SendInstagramMediaMessage(name, recipientID, url string) (string, error) {
+	mediaExt := ""
+	mediaType := ""
+	if sl := strings.Split(name, "."); len(sl) > 1 {
+		mediaExt = sl[len(sl)-1]
+	}
+
+	switch mediaExt {
+	case "jpg", "png", "jpeg":
+		mediaType = "image"
+	}
+	fbUrl := fmt.Sprintf("%s/messages", b.Accounts[0].pageID)
+	RecipientParams := &SendRecipientJson{ID: recipientID}
+	SendImageParam := &SendMessageJson{
+		Attachment: &Attachment{
+			Type: mediaType,
+			Payload: Payload{
+				URL: url,
+			},
+		},
+	}
+
 	recpt, err := json.Marshal(RecipientParams)
 	if err != nil {
 		return "", err
 	}
-	message, err := json.Marshal(MessgeParams)
+	message, err := json.Marshal(SendImageParam)
 	if err != nil {
 		return "", err
 	}
-	res, err := fb.Post("me/messages", fb.Params{
+	res, err := fb.Post(fbUrl, fb.Params{
 		"recipient": string(recpt), "message": string(message),
 		"access_token": b.Accounts[0].pageAccessToken,
 	})

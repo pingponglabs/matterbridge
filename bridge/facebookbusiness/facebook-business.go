@@ -260,7 +260,7 @@ func (b *BfacebookBusiness) HandleFacebookMediaUpload(msg *config.Message) (stri
 			//mtype := mime.TypeByExtension("." + sp[len(sp)-1])
 
 			typ := "image"
-			resp, err := b.MediaUpload(content, fi.Name)
+			resp, err := b.MediaUpload(content, fi.Name, typ)
 			if err != nil {
 				return resp.AttachmentID, typ, nil
 			}
@@ -279,49 +279,27 @@ func (b *BfacebookBusiness) Send(msg config.Message) (string, error) {
 		go b.HandleFacebookEvent(msg)
 		return "", nil
 	}
+	var SendErr error
 	for _, conversation := range b.Coversations {
 		if conversation.Name == msg.Channel {
-			var msgContent string
-			var msgType string
-			var err error
-			if msg.Extra != nil {
-				if msg.Protocol == "appservice" {
-					msg.Text = ""
-				}
-				switch conversation.Platform {
-				case "facebook":
-					msgContent, msgType, err = b.HandleFacebookMediaUpload(&msg)
-					if err != nil {
-						return "", err
-					}
-				case "instagram":
-					msgID, err := b.HandleInstaMediaUpload(&msg, conversation.CustomerSender.ID)
-					if err != nil {
-						return "", err
-					}
-					b.Lock()
-					b.SendMessageIdList[msgID] = true
-					b.Unlock()
-					return "", err
-				}
-			} else {
-				msgContent = msg.Text
-				msgType = "text"
-			}
-			// TODO add media handling
-			msgID, err := b.SendMessage(conversation.CustomerSender.ID, msgType, msgContent)
-			if err != nil {
-				return "", err
-			}
 
-			b.Lock()
-			b.SendMessageIdList[msgID] = true
-			b.Unlock()
-			return "", nil
+			// TODO add media handling
+			sendparams := b.PrepareSendParams(msg, conversation)
+			for _, param := range sendparams {
+				msgID, err := b.SendMessage(param)
+				if err != nil {
+					log.Println(err)
+					SendErr = err
+					continue
+				}
+				b.Lock()
+				b.SendMessageIdList[msgID] = true
+				b.Unlock()
+			}
 		}
 	}
 
-	return "", nil
+	return "", SendErr
 }
 func (b *BfacebookBusiness) HandleFacebookEvent(Msg config.Message) {
 	time.Sleep(50 * time.Millisecond)
@@ -410,7 +388,7 @@ func (b *BfacebookBusiness) HandleMediaEvent(rmsg *config.Message, platform stri
 			if len(sl) > 1 {
 				name = msgEvent.Message.Mid + "." + sl[1]
 			} else {
-				name = msgEvent.Message.Mid + "." + sl[1]
+				name = msgEvent.Message.Mid + "." + sl[0]
 			}
 		}
 		helper.HandleDownloadData(b.Log, rmsg, name, "", attachement.Payload.URL, &img, b.General)
