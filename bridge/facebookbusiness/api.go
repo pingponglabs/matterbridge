@@ -97,13 +97,18 @@ type SenderInfo struct {
 	Username string `json:"username,omitempty"` // instagram platform
 	Email    string `json:"email,omitempty"`
 	ID       string `json:"id"`
+	Platform string `json:"-"`
 }
 
-func GetMessages(token, pageId, platform string) (MessagesResp, error) {
+func GetMessages(token, pageId, platform, userID string) (MessagesResp, error) {
+	if platform == "facebook" {
+		platform = ""
+	}
 	req := fmt.Sprintf("%s/conversations", pageId)
 	res, err := fb.Get(req, fb.Params{
 		"fields":       "participants,senders,messages{message,from,created_time},id",
 		"platform":     platform,
+		"user_id":      userID,
 		"access_token": token,
 	})
 	if err != nil {
@@ -140,7 +145,7 @@ type SendRecipientJson struct {
 }
 
 type SendMessageJson struct {
-	Text       string     `json:"text,omitempty"`
+	Text       string      `json:"text,omitempty"`
 	Attachment *Attachment `json:"attachment,omitempty"`
 }
 
@@ -158,9 +163,9 @@ type sendParamsRaw struct {
 	sendMessage SendMessageJson
 }
 
-func (b *BfacebookBusiness) PrepareSendParams(msg config.Message, conversation ConversationInfo) []sendParamsRaw {
+func (b *BfacebookBusiness) PrepareSendParams(msg config.Message, participant  SenderInfo) []sendParamsRaw {
 	sendParams := []sendParamsRaw{}
-	recipientParam := SendRecipientJson{ID: conversation.CustomerSender.ID}
+	recipientParam := SendRecipientJson{ID: participant.ID}
 
 	if msg.Extra == nil {
 		sendMessageParam := SendMessageJson{Text: msg.Text}
@@ -179,7 +184,7 @@ func (b *BfacebookBusiness) PrepareSendParams(msg config.Message, conversation C
 			content := bytes.NewReader(*fi.Data)
 			_, typ := GetMediaTypeInfo(fi.Name)
 
-			switch conversation.Platform {
+			switch participant.Platform {
 			case "facebook":
 				resp, err := b.MediaUpload(content, fi.Name, typ)
 				if err != nil {

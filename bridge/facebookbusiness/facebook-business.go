@@ -24,6 +24,7 @@ type BfacebookBusiness struct {
 	Accounts []Account
 
 	SendMessageIdList map[string]bool
+	Participents      map[string]SenderInfo
 
 	Coversations    []ConversationInfo
 	GroupsLatestMsg map[string]time.Time
@@ -81,6 +82,7 @@ func New(cfg *bridge.Config) bridge.Bridger {
 
 	b := &BfacebookBusiness{Config: cfg}
 	b.syncMsg = make(chan MessageData)
+	b.Participents = make(map[string]SenderInfo)
 	b.Coversations = []ConversationInfo{}
 	b.GroupsLatestMsg = make(map[string]time.Time)
 	b.SendMessageIdList = make(map[string]bool)
@@ -105,22 +107,23 @@ func (b *BfacebookBusiness) Connect() error {
 		})
 
 	}
+	/*
+		ConversationRes, err := GetMessages(b.Accounts[0].pageAccessToken, b.Accounts[0].pageID, "", "")
+		if err != nil {
+			return err
+		}
+		ConversationResInsta, err := GetMessages(b.Accounts[0].pageAccessToken, b.Accounts[0].pageID, "instagram", "")
+		if err != nil {
+			return err
+		}
 
-	ConversationRes, err := GetMessages(b.Accounts[0].pageAccessToken, b.Accounts[0].pageID, "")
-	if err != nil {
-		return err
-	}
-	ConversationResInsta, err := GetMessages(b.Accounts[0].pageAccessToken, b.Accounts[0].pageID, "instagram")
-	if err != nil {
-		return err
-	}
+		channelsInfo := b.ParseConversation(ConversationRes)
+		channlsInstaInfo := b.ParseConversation(ConversationResInsta)
+		channelsInfo = append(channelsInfo, channlsInstaInfo...)
 
-	channelsInfo := b.ParseConversation(ConversationRes)
-	channlsInstaInfo := b.ParseConversation(ConversationResInsta)
-	channelsInfo = append(channelsInfo, channlsInstaInfo...)
-
-	b.Coversations = channelsInfo
-	go b.InitUsers(channelsInfo)
+		b.Coversations = channelsInfo
+		go b.InitUsers(channelsInfo)
+	*/
 	//go b.SyncMsg()
 	//go b.handleSyncUpdates()
 	return nil
@@ -149,9 +152,12 @@ func (b *BfacebookBusiness) ParseConversation(conversation MessagesResp) []Conve
 			ChannelsUsers:  conversation.Participants.Data,
 		}
 		for _, v := range conversation.Participants.Data {
+			v.Platform = "facebook"
+
 			if v.Name == "" {
 				v.Name = v.Username
 				convInfo.Platform = "instagram"
+				v.Platform = "instagram"
 			}
 			convInfo.Participents[v.ID] = v
 			if v.ID == b.Accounts[0].pageID {
@@ -207,7 +213,7 @@ func (b *BfacebookBusiness) SyncMsg() {
 
 	for {
 		time.Sleep(10 * time.Second)
-		ConversationRes, err := GetMessages(b.Accounts[0].pageAccessToken, b.Accounts[0].pageID, "")
+		ConversationRes, err := GetMessages(b.Accounts[0].pageAccessToken, b.Accounts[0].pageID, "", "")
 		if err != nil {
 			log.Println(err)
 			continue
@@ -249,6 +255,13 @@ func (b *BfacebookBusiness) UploadMedia(image io.Reader) (*goinsta.UploadOptions
 			return "", err
 		}
 */
+func (b *BfacebookBusiness) ParsePlatformID(platformID string) (string, string) {
+	sl := strings.Split(platformID, "__")
+	if len(sl) > 1 {
+		return sl[0], sl[1]
+	}
+	return platformID, ""
+}
 func (b *BfacebookBusiness) HandleFacebookMediaUpload(msg *config.Message) (string, string, error) {
 	if msg.Extra == nil {
 		return "", "", fmt.Errorf("nil extra map")
@@ -275,28 +288,38 @@ func (b *BfacebookBusiness) Send(msg config.Message) (string, error) {
 	b.Log.Debugf("=> Receiving %#v", msg)
 	switch msg.Event {
 	case "facebook-event":
-		// TODO gorotune
 		go b.HandleFacebookEvent(msg)
 		return "", nil
 	}
-	var SendErr error
-	for _, conversation := range b.Coversations {
-		if conversation.Name == msg.Channel {
 
-			// TODO add media handling
-			sendparams := b.PrepareSendParams(msg, conversation)
-			for _, param := range sendparams {
-				msgID, err := b.SendMessage(param)
-				if err != nil {
-					log.Println(err)
-					SendErr = err
-					continue
-				}
-				b.Lock()
-				b.SendMessageIdList[msgID] = true
-				b.Unlock()
-			}
+	var SendErr error
+	RecipientID, platform := b.ParsePlatformID(msg.ChannelId)
+
+	senderInfo, ok := b.Participents[RecipientID]
+	if !ok {
+
+		err := b.RegisterParticipentInfo(RecipientID, platform)
+		if err != nil {
+			return "", err
 		}
+		if senderInfo, ok = b.Participents[RecipientID]; !ok {
+			return "", fmt.Errorf("failed to fetch the recipient info %s", RecipientID)
+		}
+	}
+	if senderInfo.ID == RecipientID  {
+		sendparams := b.PrepareSendParams(msg, senderInfo)
+		for _, param := range sendparams {
+			msgID, err := b.SendMessage(param)
+			if err != nil {
+				log.Println(err)
+				SendErr = err
+				continue
+			}
+			b.Lock()
+			b.SendMessageIdList[msgID] = true
+			b.Unlock()
+		}
+		return "", SendErr
 	}
 
 	return "", SendErr
@@ -320,53 +343,115 @@ func (b *BfacebookBusiness) HandleFacebookEvent(Msg config.Message) {
 				continue
 			}
 			var TargetId string
+			var platform string
 			switch event.Object {
 			case "page":
 				TargetId = b.Accounts[0].pageID
+				platform = "facebook"
 			case "instagram":
 				TargetId = b.Accounts[0].intagramBusinessAccount
+				platform = "instagram"
 			default:
 				return
 			}
 			for _, entry := range event.Entry {
 				if entry.ID == TargetId {
+
 					for _, msgEvent := range entry.Messaging {
+
 						if b.IsMessageDuplicate(msgEvent.Message.Mid) {
 							continue
 						}
+						b.RegisterParticipentInfo(msgEvent.Sender.ID, event.Object)
+
 						// TODO add media handling
-						for _, conversationInfo := range b.Coversations {
-							if _, ok := conversationInfo.Participents[msgEvent.Recipient.ID]; ok {
-								if senderInfo, ok := conversationInfo.Participents[msgEvent.Sender.ID]; ok {
-									configMessage := config.Message{
-										Text:     "",
-										Channel:  conversationInfo.Name,
-										Username: senderInfo.Name,
-										UserID:   senderInfo.ID,
-										Avatar:   "",
-										Account:  b.Account,
-										Protocol: "facebookbusiness",
-									}
-									if msgEvent.Message.Text != "" {
-										configMessage.Text = msgEvent.Message.Text
-										b.Remote <- configMessage
-									}
-									if len(msgEvent.Message.Attachments) > 0 {
-										configMessage.Text = ""
-										b.HandleMediaEvent(&configMessage, event.Object, msgEvent)
-										b.Remote <- configMessage
-									}
-									return
-								}
+						if senderInfo, ok := b.Participents[msgEvent.Sender.ID]; ok {
+							configMessage := config.Message{
+								Text:      "",
+								Channel:   senderInfo.Name,
+								Username:  senderInfo.Name,
+								UserID:    senderInfo.ID,
+								Avatar:    "",
+								Account:   b.Account,
+								Event:     "direct_msg",
+								Protocol:  "facebookbusiness",
+								Gateway:   "",
+								ParentID:  "",
+								Timestamp: time.Time{},
+								ID:        TargetId,
+								Extra:     map[string][]interface{}{},
+								ExtraNetworkInfo: config.ExtraNetworkInfo{
+									ChannelUsersMember: []string{},
+									ActionCommand:      "",
+									ChannelId:          senderInfo.ID + "__" + platform,
+									ChannelName:        senderInfo.Name,
+									ChannelType:        "",
+									TargetPlatform:     "",
+									UsersMemberId:      map[string]string{},
+									Mentions:           map[string]string{},
+								},
 							}
+							if msgEvent.Message.Text != "" {
+								configMessage.Text = msgEvent.Message.Text
+								b.Remote <- configMessage
+							}
+							if len(msgEvent.Message.Attachments) > 0 {
+								configMessage.Text = ""
+								b.HandleMediaEvent(&configMessage, event.Object, msgEvent)
+								b.Remote <- configMessage
+							}
+							return
 						}
 					}
 				}
 			}
 		}
+
+	}
+}
+func (b *BfacebookBusiness) RegisterParticipentInfo(senderId, eventObject string) error {
+	b.Lock()
+	_, ok := b.Participents[senderId]
+	b.Unlock()
+	if ok {
+		return nil
 	}
 
+	var TargetId string
+	var platform string
+	switch eventObject {
+	case "page", "facebook":
+		TargetId = b.Accounts[0].pageID
+		platform = "facebook"
+	case "instagram":
+		TargetId = b.Accounts[0].intagramBusinessAccount
+		platform = "instagram"
+	default:
+		return fmt.Errorf("unknown platform")
+	}
+	if senderId == TargetId {
+		return nil
+	}
+
+	ConversationRes, err := GetMessages(b.Accounts[0].pageAccessToken, b.Accounts[0].pageID, platform, senderId)
+	if err != nil {
+		return err
+	}
+
+	converInfo := b.ParseConversation(ConversationRes)
+	for _, conv := range converInfo {
+
+		for k, v := range conv.Participents {
+			if k != TargetId {
+				b.Lock()
+				b.Participents[k] = v
+				b.Unlock()
+			}
+		}
+	}
+	return nil
 }
+
 func (b *BfacebookBusiness) HandleMediaEvent(rmsg *config.Message, platform string, msgEvent Messaging) {
 	rmsg.Extra = make(map[string][]interface{})
 
