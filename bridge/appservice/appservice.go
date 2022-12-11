@@ -558,8 +558,8 @@ func (b *AppServMatrix) handleDirectMessages(username, channelId string) {
 	}
 	resp, err := mc.CreateRoom(&matrix.ReqCreateRoom{
 
-		Name:   "",
-		Topic:  "",
+		Name:   username,
+		Topic:  username + " direct message room",
 		Invite: []string{b.GetString("MainUser")},
 
 		IsDirect: true,

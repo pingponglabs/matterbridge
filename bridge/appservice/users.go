@@ -19,6 +19,8 @@ func (b *AppServMatrix) createVirtualUsers(member string) (MemberInfo, error) {
 	if !validUsernameRegex.MatchString(member) {
 		ValidUsername = AlterUsername(member)
 	}
+	ValidUsername += "_" + randStringLowerRunes(3)
+
 	resp, _, err := b.apsCli.Register(&gomatrix.ReqRegister{
 		Username: b.GetString("ApsPrefix") + ValidUsername + b.GetString("UserSuffix"),
 		Type:     "m.login.application_service",
