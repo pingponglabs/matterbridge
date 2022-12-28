@@ -88,7 +88,7 @@ func newfileUploadRequest(uri, fileName string, message *SendMessageJson, r io.R
 	return req, nil
 }
 
-func (b *BfacebookBusiness) MediaUpload(r io.Reader, name, typ string) (MediaUploadResp, error) {
+func (b *BfacebookBusiness) MediaUpload(accountInfo *Account, r io.Reader, name, typ string) (MediaUploadResp, error) {
 	Attach := &SendMessageJson{}
 	Attach.Attachment = &Attachment{
 		Type: typ,
@@ -102,7 +102,7 @@ func (b *BfacebookBusiness) MediaUpload(r io.Reader, name, typ string) (MediaUpl
 		return MediaUploadResp{}, err
 	}
 	q := request.URL.Query()
-	q.Add("access_token", b.Accounts[0].pageAccessToken)
+	q.Add("access_token", accountInfo.pageAccessToken)
 	request.URL.RawQuery = q.Encode()
 	resp, err := http.DefaultClient.Do(request)
 	if err != nil {
@@ -126,7 +126,7 @@ func (b *BfacebookBusiness) MediaUpload(r io.Reader, name, typ string) (MediaUpl
 
 	return uploadResp, nil
 }
-func (b *BfacebookBusiness) HandleInstaMediaUpload(msg *config.Message, recipientID string) (string, error) {
+func (b *BfacebookBusiness) HandleInstaMediaUpload(accountInfo Account,msg *config.Message, recipientID string) (string, error) {
 	if msg.Extra == nil {
 		return "", fmt.Errorf("nil extra map")
 	}
@@ -134,9 +134,8 @@ func (b *BfacebookBusiness) HandleInstaMediaUpload(msg *config.Message, recipien
 	for _, f := range msg.Extra["file"] {
 		if fi, ok := f.(config.FileInfo); ok {
 			content := bytes.NewReader(*fi.Data)
-			//mtype := mime.TypeByExtension("." + sp[len(sp)-1])
 
-			resp, err := b.InstaMediaUpload(content, fi.Name, recipientID, fi.URL)
+			resp, err := b.InstaMediaUpload(accountInfo,content, fi.Name, recipientID, fi.URL)
 			if err != nil {
 				return resp, err
 			}
@@ -148,7 +147,7 @@ func (b *BfacebookBusiness) HandleInstaMediaUpload(msg *config.Message, recipien
 	return "", nil
 }
 
-func (b *BfacebookBusiness) InstaMediaUpload(r io.Reader, name, recipientID, url string) (string, error) {
+func (b *BfacebookBusiness) InstaMediaUpload(accountInfo Account,r io.Reader, name, recipientID, url string) (string, error) {
 	mediaExt := ""
 	mediaType := ""
 	if sl := strings.Split(name, "."); len(sl) > 1 {
@@ -159,7 +158,7 @@ func (b *BfacebookBusiness) InstaMediaUpload(r io.Reader, name, recipientID, url
 	case "jpg", "png", "jpeg":
 		mediaType = "image"
 	}
-	fbUrl := fmt.Sprintf("https://graph.facebook.com/v14.0/%s/messages", b.Accounts[0].pageID)
+	fbUrl := fmt.Sprintf("https://graph.facebook.com/v14.0/%s/messages",accountInfo.pageID)
 	RecipientParams := &SendRecipientJson{ID: recipientID}
 	SendImageParam := &SendMessageJson{
 		Attachment: &Attachment{
@@ -186,7 +185,7 @@ func (b *BfacebookBusiness) InstaMediaUpload(r io.Reader, name, recipientID, url
 	q.Add("recipient", string(recpt))
 	q.Add("message", string(message))
 
-	q.Add("access_token", b.Accounts[0].pageAccessToken)
+	q.Add("access_token", accountInfo.pageAccessToken)
 	request.URL.RawQuery = q.Encode()
 	resp, err := http.DefaultClient.Do(request)
 	if err != nil {

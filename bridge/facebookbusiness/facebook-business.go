@@ -21,13 +21,10 @@ type BfacebookBusiness struct {
 	UserID   string
 	Username string
 	Token    string
-	Accounts []Account
+	Accounts []*Account
 
 	SendMessageIdList map[string]bool
-	Participents      map[string]SenderInfo
 
-	Coversations    []ConversationInfo
-	GroupsLatestMsg map[string]time.Time
 	sync.RWMutex
 	*bridge.Config
 	syncMsg chan MessageData
@@ -39,6 +36,8 @@ type Account struct {
 	pageName        string
 
 	intagramBusinessAccount string
+
+	Participents map[string]SenderInfo
 }
 type group struct {
 	Id    string
@@ -82,9 +81,6 @@ func New(cfg *bridge.Config) bridge.Bridger {
 
 	b := &BfacebookBusiness{Config: cfg}
 	b.syncMsg = make(chan MessageData)
-	b.Participents = make(map[string]SenderInfo)
-	b.Coversations = []ConversationInfo{}
-	b.GroupsLatestMsg = make(map[string]time.Time)
 	b.SendMessageIdList = make(map[string]bool)
 	return b
 }
@@ -98,34 +94,19 @@ func (b *BfacebookBusiness) Connect() error {
 
 	b.UserID = res.ID
 	b.Username = res.Name
+	pageList := b.GetStringSlice("PagesNames")
 	for _, v := range res.Accounts.Data {
-		b.Accounts = append(b.Accounts, Account{
-			pageAccessToken:         v.AccessToken,
-			pageID:                  v.ID,
-			pageName:                v.Name,
-			intagramBusinessAccount: v.InstagramBusinessAccount.ID,
-		})
+		if sliceContains(pageList, v.Name) {
+			b.Accounts = append(b.Accounts, &Account{
+				pageAccessToken:         v.AccessToken,
+				pageID:                  v.ID,
+				pageName:                v.Name,
+				intagramBusinessAccount: v.InstagramBusinessAccount.ID,
+				Participents:            map[string]SenderInfo{},
+			})
+		}
 
 	}
-	/*
-		ConversationRes, err := GetMessages(b.Accounts[0].pageAccessToken, b.Accounts[0].pageID, "", "")
-		if err != nil {
-			return err
-		}
-		ConversationResInsta, err := GetMessages(b.Accounts[0].pageAccessToken, b.Accounts[0].pageID, "instagram", "")
-		if err != nil {
-			return err
-		}
-
-		channelsInfo := b.ParseConversation(ConversationRes)
-		channlsInstaInfo := b.ParseConversation(ConversationResInsta)
-		channelsInfo = append(channelsInfo, channlsInstaInfo...)
-
-		b.Coversations = channelsInfo
-		go b.InitUsers(channelsInfo)
-	*/
-	//go b.SyncMsg()
-	//go b.handleSyncUpdates()
 	return nil
 }
 
@@ -160,7 +141,7 @@ func (b *BfacebookBusiness) ParseConversation(conversation MessagesResp) []Conve
 				v.Platform = "instagram"
 			}
 			convInfo.Participents[v.ID] = v
-			if v.ID == b.Accounts[0].pageID {
+			if b.MainBotAccountId(v.ID) {
 				convInfo.PageSender = v
 				continue
 			}
@@ -208,24 +189,6 @@ func (b *BfacebookBusiness) InitUsers(convsInfo []ConversationInfo) {
 	}
 }
 
-func (b *BfacebookBusiness) SyncMsg() {
-	time.Sleep(10 * time.Second)
-
-	for {
-		time.Sleep(10 * time.Second)
-		ConversationRes, err := GetMessages(b.Accounts[0].pageAccessToken, b.Accounts[0].pageID, "", "")
-		if err != nil {
-			log.Println(err)
-			continue
-		}
-		for _, converstation := range ConversationRes.Data {
-			b.syncMsg <- converstation
-		}
-		time.Sleep(5 * time.Minute)
-	}
-	//webhook listening on ports ,
-}
-
 func (b *BfacebookBusiness) HandleImport() {
 
 }
@@ -245,45 +208,14 @@ func (b *BfacebookBusiness) UploadMedia(image io.Reader) (*goinsta.UploadOptions
 
 }
 
-/*
-	if msg.Extra != nil {
-		if msg.Protocol == "appservice" {
-			msg.Text = ""
-		}
-		err := b.HandleFacebookMediaUpload(&msg)
-		if err != nil {
-			return "", err
-		}
-*/
-func (b *BfacebookBusiness) ParsePlatformID(platformID string) (string, string) {
+func (b *BfacebookBusiness) ParseSenderID(platformID string) (string, string, string) {
 	sl := strings.Split(platformID, "__")
-	if len(sl) > 1 {
-		return sl[0], sl[1]
+	if len(sl) > 2 {
+		return sl[0], sl[1], sl[2]
 	}
-	return platformID, ""
+	return platformID, "", ""
 }
-func (b *BfacebookBusiness) HandleFacebookMediaUpload(msg *config.Message) (string, string, error) {
-	if msg.Extra == nil {
-		return "", "", fmt.Errorf("nil extra map")
-	}
 
-	for _, f := range msg.Extra["file"] {
-		if fi, ok := f.(config.FileInfo); ok {
-			content := bytes.NewReader(*fi.Data)
-			//mtype := mime.TypeByExtension("." + sp[len(sp)-1])
-
-			typ := "image"
-			resp, err := b.MediaUpload(content, fi.Name, typ)
-			if err != nil {
-				return resp.AttachmentID, typ, nil
-			}
-
-			b.Log.Debug(resp)
-			return resp.AttachmentID, typ, nil
-		}
-	}
-	return "", "", nil
-}
 func (b *BfacebookBusiness) Send(msg config.Message) (string, error) {
 	b.Log.Debugf("=> Receiving %#v", msg)
 	switch msg.Event {
@@ -293,23 +225,26 @@ func (b *BfacebookBusiness) Send(msg config.Message) (string, error) {
 	}
 
 	var SendErr error
-	RecipientID, platform := b.ParsePlatformID(msg.ChannelId)
+	accountId, recipientID, platform := b.ParseSenderID(msg.ChannelId)
 
-	senderInfo, ok := b.Participents[RecipientID]
+	accountInfo, err := b.GetAccountInfo(accountId)
+	if err != nil {
+		return "", err
+	}
+
+	senderInfo, ok := accountInfo.Participents[recipientID]
 	if !ok {
 
-		err := b.RegisterParticipentInfo(RecipientID, platform)
+		senderInfo, err = b.RegisterParticipentInfo(accountId, recipientID, platform)
 		if err != nil {
 			return "", err
 		}
-		if senderInfo, ok = b.Participents[RecipientID]; !ok {
-			return "", fmt.Errorf("failed to fetch the recipient info %s", RecipientID)
-		}
+
 	}
-	if senderInfo.ID == RecipientID  {
-		sendparams := b.PrepareSendParams(msg, senderInfo)
+	if senderInfo.ID == recipientID {
+		sendparams := b.PrepareSendParams(accountInfo, msg, senderInfo)
 		for _, param := range sendparams {
-			msgID, err := b.SendMessage(param)
+			msgID, err := b.SendMessage(accountInfo, param)
 			if err != nil {
 				log.Println(err)
 				SendErr = err
@@ -329,127 +264,123 @@ func (b *BfacebookBusiness) HandleFacebookEvent(Msg config.Message) {
 	if Msg.Extra == nil {
 		log.Println(fmt.Errorf("empty facebook events data"))
 	}
-	if events, ok := Msg.Extra["facebook-event"]; ok {
-		for _, v := range events {
-			var event event
-			ev, err := json.Marshal(v)
-			if err != nil {
-				log.Println(err)
+	events, ok := Msg.Extra["facebook-event"]
+	if !ok {
+		return
+	}
+	for _, v := range events {
+		var event event
+		ev, err := json.Marshal(v)
+		if err != nil {
+			log.Println(err)
+			continue
+		}
+		err = json.Unmarshal(ev, &event)
+		if err != nil {
+			log.Println(err)
+			continue
+		}
+		var platform string
+		switch event.Object {
+		case "page":
+			platform = "facebook"
+		case "instagram":
+			platform = "instagram"
+		default:
+			return
+		}
+		for _, entry := range event.Entry {
+			if !b.MainBotAccountId(entry.ID) {
 				continue
 			}
-			err = json.Unmarshal(ev, &event)
+			accountInfo, err := b.GetAccountInfo(entry.ID)
 			if err != nil {
-				log.Println(err)
 				continue
 			}
-			var TargetId string
-			var platform string
-			switch event.Object {
-			case "page":
-				TargetId = b.Accounts[0].pageID
-				platform = "facebook"
-			case "instagram":
-				TargetId = b.Accounts[0].intagramBusinessAccount
-				platform = "instagram"
-			default:
-				return
-			}
-			for _, entry := range event.Entry {
-				if entry.ID == TargetId {
 
-					for _, msgEvent := range entry.Messaging {
+			for _, msgEvent := range entry.Messaging {
 
-						if b.IsMessageDuplicate(msgEvent.Message.Mid) {
-							continue
-						}
-						b.RegisterParticipentInfo(msgEvent.Sender.ID, event.Object)
+				if b.IsMessageDuplicate(msgEvent.Message.Mid) {
+					continue
+				}
+				senderInfo, err := b.RegisterParticipentInfo(entry.ID, msgEvent.Sender.ID, event.Object)
+				if err != nil {
+					b.Log.Errorf(err.Error())
+					continue
+				}
 
-						// TODO add media handling
-						if senderInfo, ok := b.Participents[msgEvent.Sender.ID]; ok {
-							configMessage := config.Message{
-								Text:      "",
-								Channel:   senderInfo.Name,
-								Username:  senderInfo.Name,
-								UserID:    senderInfo.ID,
-								Avatar:    "",
-								Account:   b.Account,
-								Event:     "direct_msg",
-								Protocol:  "facebookbusiness",
-								Gateway:   "",
-								ParentID:  "",
-								Timestamp: time.Time{},
-								ID:        TargetId,
-								Extra:     map[string][]interface{}{},
-								ExtraNetworkInfo: config.ExtraNetworkInfo{
-									ChannelUsersMember: []string{},
-									ActionCommand:      "",
-									ChannelId:          senderInfo.ID + "__" + platform,
-									ChannelName:        senderInfo.Name,
-									ChannelType:        "",
-									TargetPlatform:     "",
-									UsersMemberId:      map[string]string{},
-									Mentions:           map[string]string{},
-								},
-							}
-							if msgEvent.Message.Text != "" {
-								configMessage.Text = msgEvent.Message.Text
-								b.Remote <- configMessage
-							}
-							if len(msgEvent.Message.Attachments) > 0 {
-								configMessage.Text = ""
-								b.HandleMediaEvent(&configMessage, event.Object, msgEvent)
-								b.Remote <- configMessage
-							}
-							return
-						}
-					}
+				configMessage := config.Message{
+					Text:     "",
+					Channel:  accountInfo.pageName + "_" + platform + "_" + senderInfo.Name,
+					Username: accountInfo.pageName + "_" + platform + "_" + senderInfo.Name,
+					UserID:   entry.ID + "__" + senderInfo.ID + "__" + platform,
+					Account:  b.Account,
+					Event:    "direct_msg",
+					Protocol: "facebookbusiness",
+					ID:       entry.ID,
+					ExtraNetworkInfo: config.ExtraNetworkInfo{
+						ChannelUsersMember: []string{},
+						ChannelId:          entry.ID + "__" + senderInfo.ID + "__" + platform,
+						ChannelName:        senderInfo.Name,
+					},
+				}
+				if msgEvent.Message.Text != "" {
+					configMessage.Text = msgEvent.Message.Text
+					b.Remote <- configMessage
+				}
+				if len(msgEvent.Message.Attachments) > 0 {
+					configMessage.Text = ""
+					b.HandleMediaEvent(&configMessage, event.Object, msgEvent)
+					b.Remote <- configMessage
 				}
 			}
 		}
-
 	}
 }
-func (b *BfacebookBusiness) RegisterParticipentInfo(senderId, eventObject string) error {
-	b.Lock()
-	_, ok := b.Participents[senderId]
-	b.Unlock()
-	if ok {
-		return nil
+
+func (b *BfacebookBusiness) RegisterParticipentInfo(accountID, senderId, eventObject string) (SenderInfo, error) {
+	accountInfo, err := b.GetAccountInfo(accountID)
+	if err != nil {
+		return SenderInfo{}, err
 	}
 
-	var TargetId string
+	participient, ok := accountInfo.Participents[senderId]
+	if ok {
+		return participient, nil
+	}
+
 	var platform string
 	switch eventObject {
 	case "page", "facebook":
-		TargetId = b.Accounts[0].pageID
 		platform = "facebook"
 	case "instagram":
-		TargetId = b.Accounts[0].intagramBusinessAccount
 		platform = "instagram"
 	default:
-		return fmt.Errorf("unknown platform")
+		return SenderInfo{}, fmt.Errorf("unknown platform")
 	}
-	if senderId == TargetId {
-		return nil
+	if b.MainBotAccountId(senderId) {
+		return SenderInfo{}, fmt.Errorf("sender is the main bot account")
 	}
 
-	ConversationRes, err := GetMessages(b.Accounts[0].pageAccessToken, b.Accounts[0].pageID, platform, senderId)
+	ConversationRes, err := GetMessages(accountInfo.pageAccessToken, accountInfo.pageID, platform, senderId)
 	if err != nil {
-		return err
+		return SenderInfo{}, err
 	}
 
 	converInfo := b.ParseConversation(ConversationRes)
 	for _, conv := range converInfo {
 
 		for k, v := range conv.Participents {
-			if k != TargetId {
+			if !b.MainBotAccountId(k) {
 				b.Lock()
-				b.Participents[k] = v
-				b.Unlock()
+				defer b.Unlock()
+
+				accountInfo.Participents[k] = v
+				return v, nil
 			}
 		}
 	}
-	return nil
+	return SenderInfo{}, fmt.Errorf("sender %s not found", senderId)
 }
 
 func (b *BfacebookBusiness) HandleMediaEvent(rmsg *config.Message, platform string, msgEvent Messaging) {
@@ -478,44 +409,6 @@ func (b *BfacebookBusiness) HandleMediaEvent(rmsg *config.Message, platform stri
 		}
 		helper.HandleDownloadData(b.Log, rmsg, name, "", attachement.Payload.URL, &img, b.General)
 
-	}
-}
-
-func (b *BfacebookBusiness) handleSyncUpdates() {
-
-	for msgData := range b.syncMsg {
-		title := msgData.ID
-		var recentMsg time.Time
-
-		b.RLock()
-		recentMsg = b.GroupsLatestMsg[title]
-		b.RUnlock()
-		for _, item := range msgData.Messages.Data {
-			parsedCreatedTime := parseCreatedTime(item.CreatedTime)
-			if parsedCreatedTime.After(recentMsg) {
-				recentMsg = parsedCreatedTime
-			}
-			if parsedCreatedTime.Before(recentMsg) {
-				break
-			}
-			if item.From.ID == b.UserID {
-				continue
-			}
-			configMessage := config.Message{
-				Text:     item.Message,
-				Channel:  title,
-				Username: item.From.Name,
-				UserID:   item.From.ID,
-				Avatar:   "",
-				Account:  b.Account,
-				Protocol: "facebook-business",
-			}
-
-			b.Remote <- configMessage
-		}
-		b.Lock()
-		b.GroupsLatestMsg[title] = recentMsg
-		b.Unlock()
 	}
 }
 
@@ -576,4 +469,20 @@ func (b *BfacebookBusiness) IsMessageDuplicate(mid string) bool {
 		}
 	}
 	return false
+}
+func (b *BfacebookBusiness) MainBotAccountId(id string) bool {
+	for _, v := range b.Accounts {
+		if v.pageID == id || v.intagramBusinessAccount == id {
+			return true
+		}
+	}
+	return false
+}
+func (b *BfacebookBusiness) GetAccountInfo(id string) (*Account, error) {
+	for _, v := range b.Accounts {
+		if v.pageID == id || v.intagramBusinessAccount == id {
+			return v, nil
+		}
+	}
+	return nil, fmt.Errorf("account %s not found", id)
 }

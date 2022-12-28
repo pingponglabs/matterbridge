@@ -45,28 +45,6 @@ type CategoryList struct {
 	Name string `json:"name"`
 }
 
-func GetAccountInfo(token string) (AccountResp, error) {
-
-	res, err := fb.Get("me", fb.Params{
-		"fields":       "accounts{instagram_business_account,access_token,name,id},name,id",
-		"access_token": token,
-	})
-	if err != nil {
-		return AccountResp{}, err
-	}
-	a := AccountResp{}
-	b, err := json.Marshal(res)
-	if err != nil {
-		return AccountResp{}, err
-	}
-	err = json.Unmarshal(b, &a)
-	if err != nil {
-		return AccountResp{}, err
-	}
-	log.Println(res)
-	return a, nil
-}
-
 type MessagesResp struct {
 	Data   []MessageData `json:"data"`
 	Paging Paging        `json:"paging"`
@@ -100,46 +78,6 @@ type SenderInfo struct {
 	Platform string `json:"-"`
 }
 
-func GetMessages(token, pageId, platform, userID string) (MessagesResp, error) {
-	if platform == "facebook" {
-		platform = ""
-	}
-	req := fmt.Sprintf("%s/conversations", pageId)
-	res, err := fb.Get(req, fb.Params{
-		"fields":       "participants,senders,messages{message,from,created_time},id",
-		"platform":     platform,
-		"user_id":      userID,
-		"access_token": token,
-	})
-	if err != nil {
-		return MessagesResp{}, err
-	}
-	a := MessagesResp{}
-	b, err := json.Marshal(res)
-	if err != nil {
-		return MessagesResp{}, err
-	}
-	err = json.Unmarshal(b, &a)
-	if err != nil {
-		return MessagesResp{}, err
-	}
-	log.Println(res)
-	return a, nil
-}
-
-/*
-error when messaging ordinaty user
-
-	{
-	  "error": {
-	    "message": "(#10) Cannot message users who are not admins, developers or testers of the app until pages_messaging permission is reviewed and the app is live.",
-	    "type": "OAuthException",
-	    "code": 10,
-	    "error_subcode": 2018028,
-	    "fbtrace_id": "A_eRvwmANMLuy6hys2TGAio"
-	  }
-	}
-*/
 type SendRecipientJson struct {
 	ID string `json:"id,omitempty"`
 }
@@ -161,160 +99,6 @@ type sendParamsRaw struct {
 	link        string
 	recipientID SendRecipientJson
 	sendMessage SendMessageJson
-}
-
-func (b *BfacebookBusiness) PrepareSendParams(msg config.Message, participant  SenderInfo) []sendParamsRaw {
-	sendParams := []sendParamsRaw{}
-	recipientParam := SendRecipientJson{ID: participant.ID}
-
-	if msg.Extra == nil {
-		sendMessageParam := SendMessageJson{Text: msg.Text}
-		sendParams = append(sendParams, sendParamsRaw{
-			link:        "/me/messages",
-			recipientID: recipientParam,
-			sendMessage: sendMessageParam,
-		})
-		return sendParams
-	}
-	if msg.Protocol == "appservice" {
-		msg.Text = ""
-	}
-	for _, f := range msg.Extra["file"] {
-		if fi, ok := f.(config.FileInfo); ok {
-			content := bytes.NewReader(*fi.Data)
-			_, typ := GetMediaTypeInfo(fi.Name)
-
-			switch participant.Platform {
-			case "facebook":
-				resp, err := b.MediaUpload(content, fi.Name, typ)
-				if err != nil {
-					log.Println(err)
-					continue
-				}
-				sendMessageParam := SendMessageJson{
-					Attachment: &Attachment{
-						Type: typ,
-						Payload: Payload{
-							AttachmentID: resp.AttachmentID,
-						},
-					},
-				}
-				sendParams = append(sendParams, sendParamsRaw{
-					link:        "/me/messages",
-					recipientID: recipientParam,
-					sendMessage: sendMessageParam,
-				})
-			case "instagram":
-				sendMessageParam := SendMessageJson{
-					Attachment: &Attachment{
-						Type: typ,
-						Payload: Payload{
-							URL: fi.URL,
-						},
-					},
-				}
-				sendParams = append(sendParams, sendParamsRaw{
-					link:        fmt.Sprintf("%s/messages", b.Accounts[0].pageID),
-					recipientID: recipientParam,
-					sendMessage: sendMessageParam,
-				})
-			}
-
-		}
-	}
-	return sendParams
-}
-
-func GetMediaTypeInfo(name string) (string, string) {
-	mediaExt := ""
-	typ := ""
-	if sl := strings.Split(name, "."); len(sl) > 1 {
-		mediaExt = sl[len(sl)-1]
-	}
-	switch mediaExt {
-	case "jpg", "png", "jpeg":
-		typ = "image"
-	}
-	return mediaExt, typ
-}
-
-func (b *BfacebookBusiness) SendMessage(params sendParamsRaw) (string, error) {
-
-	recpt, err := json.Marshal(params.recipientID)
-	if err != nil {
-		return "", err
-	}
-	message, err := json.Marshal(params.sendMessage)
-	if err != nil {
-		return "", err
-	}
-	res, err := fb.Post(params.link, fb.Params{
-		"recipient": string(recpt), "message": string(message),
-		"access_token": b.Accounts[0].pageAccessToken,
-	})
-	if err != nil {
-		return "", err
-	}
-	if v, ok := res["message_id"]; ok {
-		if msgId, ok := v.(string); ok {
-			return msgId, nil
-		}
-	}
-	log.Println(res)
-	return "", fmt.Errorf("empty facebook send messageId")
-}
-func (b *BfacebookBusiness) SendInstagramMediaMessage(name, recipientID, url string) (string, error) {
-	mediaExt := ""
-	mediaType := ""
-	if sl := strings.Split(name, "."); len(sl) > 1 {
-		mediaExt = sl[len(sl)-1]
-	}
-
-	switch mediaExt {
-	case "jpg", "png", "jpeg":
-		mediaType = "image"
-	}
-	fbUrl := fmt.Sprintf("%s/messages", b.Accounts[0].pageID)
-	RecipientParams := &SendRecipientJson{ID: recipientID}
-	SendImageParam := &SendMessageJson{
-		Attachment: &Attachment{
-			Type: mediaType,
-			Payload: Payload{
-				URL: url,
-			},
-		},
-	}
-
-	recpt, err := json.Marshal(RecipientParams)
-	if err != nil {
-		return "", err
-	}
-	message, err := json.Marshal(SendImageParam)
-	if err != nil {
-		return "", err
-	}
-	res, err := fb.Post(fbUrl, fb.Params{
-		"recipient": string(recpt), "message": string(message),
-		"access_token": b.Accounts[0].pageAccessToken,
-	})
-	if err != nil {
-		return "", err
-	}
-	if v, ok := res["message_id"]; ok {
-		if msgId, ok := v.(string); ok {
-			return msgId, nil
-		}
-	}
-	log.Println(res)
-	return "", fmt.Errorf("empty facebook send messageId")
-}
-func parseCreatedTime(stime string) time.Time {
-	layout := "2006-01-02T15:04:05+0000"
-	t, err := time.Parse(layout, stime)
-	if err != nil {
-		log.Println(err)
-	}
-	return t
 }
 
 type event struct {
@@ -350,4 +134,216 @@ type Sender struct {
 }
 type Recipient struct {
 	ID string `json:"id"`
+}
+
+func GetAccountInfo(token string) (AccountResp, error) {
+
+	res, err := fb.Get("me", fb.Params{
+		"fields":       "accounts{instagram_business_account,access_token,name,id},name,id",
+		"access_token": token,
+	})
+	if err != nil {
+		return AccountResp{}, err
+	}
+	a := AccountResp{}
+	b, err := json.Marshal(res)
+	if err != nil {
+		return AccountResp{}, err
+	}
+	err = json.Unmarshal(b, &a)
+	if err != nil {
+		return AccountResp{}, err
+	}
+	log.Println(res)
+	return a, nil
+}
+
+func sliceContains(elems []string, v string) bool {
+	for _, s := range elems {
+		if v == s {
+			return true
+		}
+	}
+	return false
+}
+
+func GetMessages(token, pageId, platform, userID string) (MessagesResp, error) {
+	if platform == "facebook" {
+		platform = ""
+	}
+	req := fmt.Sprintf("%s/conversations", pageId)
+	res, err := fb.Get(req, fb.Params{
+		"fields":       "participants,senders,messages{message,from,created_time},id",
+		"platform":     platform,
+		"user_id":      userID,
+		"access_token": token,
+	})
+	if err != nil {
+		return MessagesResp{}, err
+	}
+	a := MessagesResp{}
+	b, err := json.Marshal(res)
+	if err != nil {
+		return MessagesResp{}, err
+	}
+	err = json.Unmarshal(b, &a)
+	if err != nil {
+		return MessagesResp{}, err
+	}
+	log.Println(res)
+	return a, nil
+}
+
+func (b *BfacebookBusiness) PrepareSendParams(accountInfo *Account,msg config.Message, participant SenderInfo) []sendParamsRaw {
+	sendParams := []sendParamsRaw{}
+	recipientParam := SendRecipientJson{ID: participant.ID}
+
+	if msg.Extra == nil {
+		sendMessageParam := SendMessageJson{Text: msg.Text}
+		sendParams = append(sendParams, sendParamsRaw{
+			link:        "/me/messages",
+			recipientID: recipientParam,
+			sendMessage: sendMessageParam,
+		})
+		return sendParams
+	}
+	if msg.Protocol == "appservice" {
+		msg.Text = ""
+	}
+	for _, f := range msg.Extra["file"] {
+		if fi, ok := f.(config.FileInfo); ok {
+			content := bytes.NewReader(*fi.Data)
+			_, typ := GetMediaTypeInfo(fi.Name)
+
+			switch participant.Platform {
+			case "facebook":
+				resp, err := b.MediaUpload(accountInfo ,content, fi.Name, typ)
+				if err != nil {
+					log.Println(err)
+					continue
+				}
+				sendMessageParam := SendMessageJson{
+					Attachment: &Attachment{
+						Type: typ,
+						Payload: Payload{
+							AttachmentID: resp.AttachmentID,
+						},
+					},
+				}
+				sendParams = append(sendParams, sendParamsRaw{
+					link:        "/me/messages",
+					recipientID: recipientParam,
+					sendMessage: sendMessageParam,
+				})
+			case "instagram":
+				sendMessageParam := SendMessageJson{
+					Attachment: &Attachment{
+						Type: typ,
+						Payload: Payload{
+							URL: fi.URL,
+						},
+					},
+				}
+				sendParams = append(sendParams, sendParamsRaw{
+					link:        fmt.Sprintf("%s/messages", accountInfo.pageID),
+					recipientID: recipientParam,
+					sendMessage: sendMessageParam,
+				})
+			}
+
+		}
+	}
+	return sendParams
+}
+
+func GetMediaTypeInfo(name string) (string, string) {
+	mediaExt := ""
+	typ := ""
+	if sl := strings.Split(name, "."); len(sl) > 1 {
+		mediaExt = sl[len(sl)-1]
+	}
+	switch mediaExt {
+	case "jpg", "png", "jpeg":
+		typ = "image"
+	}
+	return mediaExt, typ
+}
+
+func (b *BfacebookBusiness) SendMessage(accountInfo *Account,params sendParamsRaw) (string, error) {
+
+	recpt, err := json.Marshal(params.recipientID)
+	if err != nil {
+		return "", err
+	}
+	message, err := json.Marshal(params.sendMessage)
+	if err != nil {
+		return "", err
+	}
+	res, err := fb.Post(params.link, fb.Params{
+		"recipient": string(recpt), "message": string(message),
+		"access_token": accountInfo.pageAccessToken,
+	})
+	if err != nil {
+		return "", err
+	}
+	if v, ok := res["message_id"]; ok {
+		if msgId, ok := v.(string); ok {
+			return msgId, nil
+		}
+	}
+	log.Println(res)
+	return "", fmt.Errorf("empty facebook send messageId")
+}
+func (b *BfacebookBusiness) SendInstagramMediaMessage(accountInfo Account,name, recipientID, url string) (string, error) {
+	mediaExt := ""
+	mediaType := ""
+	if sl := strings.Split(name, "."); len(sl) > 1 {
+		mediaExt = sl[len(sl)-1]
+	}
+
+	switch mediaExt {
+	case "jpg", "png", "jpeg":
+		mediaType = "image"
+	}
+	fbUrl := fmt.Sprintf("%s/messages", accountInfo.pageID)
+	RecipientParams := &SendRecipientJson{ID: recipientID}
+	SendImageParam := &SendMessageJson{
+		Attachment: &Attachment{
+			Type: mediaType,
+			Payload: Payload{
+				URL: url,
+			},
+		},
+	}
+
+	recpt, err := json.Marshal(RecipientParams)
+	if err != nil {
+		return "", err
+	}
+	message, err := json.Marshal(SendImageParam)
+	if err != nil {
+		return "", err
+	}
+	res, err := fb.Post(fbUrl, fb.Params{
+		"recipient": string(recpt), "message": string(message),
+		"access_token": accountInfo.pageAccessToken,
+	})
+	if err != nil {
+		return "", err
+	}
+	if v, ok := res["message_id"]; ok {
+		if msgId, ok := v.(string); ok {
+			return msgId, nil
+		}
+	}
+	log.Println(res)
+	return "", fmt.Errorf("empty facebook send messageId")
+}
+func parseCreatedTime(stime string) time.Time {
+	layout := "2006-01-02T15:04:05+0000"
+	t, err := time.Parse(layout, stime)
+	if err != nil {
+		log.Println(err)
+	}
+	return t
 }
