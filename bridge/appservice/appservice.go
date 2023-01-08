@@ -1097,7 +1097,7 @@ func (b *AppServMatrix) handleEvent(ev *matrix.Event) {
 				rmsg.Event = "direct_msg"
 			}
 			rmsg.ChannelId = channelInfo.RemoteId
-			if b.RemoteProtocol == "telegram" || b.RemoteProtocol == "whatsapp" || b.RemoteProtocol == "twitter" {
+			if b.RemoteProtocol == "telegram" || b.RemoteProtocol == "whatsapp" || b.RemoteProtocol == "email" || b.RemoteProtocol == "twitter" {
 				rmsg.Channel = rmsg.ChannelId
 			}
 			b.RUnlock()

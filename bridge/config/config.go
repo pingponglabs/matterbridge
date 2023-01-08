@@ -192,6 +192,10 @@ type Protocol struct {
 
 	Oauth1Token  string  // twitter
 	Oauth1Secret string  // twitter
+    
+	SMTP string // email
+	IMAP string // email
+
 }
 
 type ChannelOptions struct {
@@ -250,7 +254,10 @@ type BridgeValues struct {
 	Appservice         map[string]Protocol
 	Instagram          map[string]Protocol
 	Facebookbusiness   map[string]Protocol
-	Twitter          map[string]Protocol
+
+	Twitter            map[string]Protocol	
+	Email              map[string]Protocol
+
 	General            Protocol
 	Tengo              Tengo
 	Gateway            []Gateway
