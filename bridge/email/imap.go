@@ -103,7 +103,7 @@ func (b *Bemail) HandleEmailText(rmsg config.Message, r io.Reader) {
 		b.Log.Println(err)
 		return
 	}
-	rmsg.Text = strings.TrimSuffix(string(content), "\r\n")
+	rmsg.Text = strings.Split(string(content), "\r\n")[0]
 	b.Remote <- rmsg
 }
 
@@ -186,9 +186,7 @@ func (b *Bemail) SyncEmailInbox() {
 
 		seqset := new(imap.SeqSet)
 		cr := &imap.SearchCriteria{
-			Since:     time.Now().Add(-5 * time.Minute),
-			SentSince: time.Now().Add(-5 * time.Minute),
-			WithFlags: []string{},
+			SentSince:        time.Now().Add(-5 * time.Minute),
 		}
 		ser, err := b.Client.Search(cr)
 		if err != nil {
@@ -207,6 +205,9 @@ func (b *Bemail) SyncEmailInbox() {
 		b.Log.Println("Last 100 messages:")
 		for msg := range messages {
 			if !b.IsProcessed(msg.Envelope.MessageId) {
+				b.Log.Println(msg.Envelope.Date)
+				b.Log.Println(msg.InternalDate)
+
 				b.ProcessedEmailMsgID = append(b.ProcessedEmailMsgID, msg.Envelope.MessageId)
 				b.HandleIncomingEmail(msg)
 			}
