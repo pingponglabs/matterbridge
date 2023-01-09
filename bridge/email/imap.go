@@ -1,6 +1,7 @@
 package bemail
 
 import (
+	"errors"
 	"io"
 	"log"
 	"mime"
@@ -68,7 +69,7 @@ func (b *Bemail) HandleEmailContent(msg config.Message, body map[*imap.BodySecti
 		for i := 0; i < 50; i++ {
 			p, err := rmail.NextPart()
 			if err != nil {
-				b.Log.Errorf("next Part func : %s", err)
+				b.Log.Debugf("next Part func : %s", err)
 				break
 			}
 			b.HandleEmailPart(msg, p)
@@ -177,16 +178,26 @@ func (b *Bemail) SyncEmailInbox() {
 	for {
 		time.Sleep(10 * time.Second)
 
-		mbox, err := b.Client.Select("INBOX", false)
+		_, err := b.Client.Select("INBOX", false)
 		if err != nil {
 			b.Log.Println(err)
-			continue
+			if errors.Is(err, client.ErrNotLoggedIn) {
+				err := b.Client.Logout()
+				if err != nil {
+					b.Log.Println(err)
+				}
+				err = b.Client.Login(b.GetString("username"), b.GetString("password"))
+				if err != nil {
+					// TODO handle login error with different approach ,
+					b.Log.Fatal(err)
+
+				}
+			}
 		}
-		b.Log.Println("Flags for INBOX:", mbox.Flags)
 
 		seqset := new(imap.SeqSet)
 		cr := &imap.SearchCriteria{
-			SentSince:        time.Now().Add(-5 * time.Minute),
+			SentSince: time.Now().Add(-5 * time.Minute),
 		}
 		ser, err := b.Client.Search(cr)
 		if err != nil {
@@ -202,12 +213,11 @@ func (b *Bemail) SyncEmailInbox() {
 		go func() {
 			errFetch <- b.Client.Fetch(seqset, []imap.FetchItem{imap.FetchBody, imap.FetchFlags, imap.FetchBodyStructure, secItem, imap.FetchEnvelope}, messages)
 		}()
-		b.Log.Println("Last 100 messages:")
 		for msg := range messages {
 			if !b.IsProcessed(msg.Envelope.MessageId) {
-				b.Log.Println(msg.Envelope.Date)
-				b.Log.Println(msg.InternalDate)
-
+				if len(msg.Envelope.From) > 0 {
+					b.Log.Infof("email from %s with subject %q sent on %s \n", msg.Envelope.From[0].MailboxName, msg.Envelope.Subject, msg.Envelope.Date)
+				}
 				b.ProcessedEmailMsgID = append(b.ProcessedEmailMsgID, msg.Envelope.MessageId)
 				b.HandleIncomingEmail(msg)
 			}
