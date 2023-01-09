@@ -1221,11 +1221,6 @@ func (b *AppServMatrix) handleDownloadFile(rmsg *config.Message, content map[str
 		}
 	}
 
-	// check if the size is ok
-	err := helper.HandleDownloadSize(b.Log, rmsg, name, int64(size), b.General)
-	if err != nil {
-		return err
-	}
 	// actually download the file
 	data, err := helper.DownloadFile(url)
 	if err != nil {
