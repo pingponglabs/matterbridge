@@ -60,7 +60,6 @@ func (b *Bemail) HandleIncomingEmail(emailMsg *imap.Message) {
 }
 func (b *Bemail) HandleEmailContent(msg config.Message, body map[*imap.BodySectionName]imap.Literal) {
 	for _, bodyPart := range body {
-		// b.Log.Info(section.BodyPartName.Fields)
 		emailContent, err := parsemail.Parse(bodyPart)
 		if err != nil {
 			b.Log.Infof("parse email body failed : %s", err)
@@ -93,14 +92,8 @@ func (b *Bemail) HandleEmailContent(msg config.Message, body map[*imap.BodySecti
 func (b *Bemail) HandleEmailParsed(msg config.Message, emailContent parsemail.Email) {
 	if emailContent.TextBody != "" {
 		b.HandleEmailText(msg, emailContent.TextBody)
-		// make a delay in case there is text with attachment on the email
-		time.Sleep(200 * time.Millisecond)
-	}
-
-	if emailContent.HTMLBody != "" {
+	} else if emailContent.HTMLBody != "" {
 		b.HandleEmailHtml(msg, emailContent.HTMLBody)
-		// make a delay in case there is text with attachment on the email
-		time.Sleep(200 * time.Millisecond)
 	}
 	if emailContent.Attachments != nil {
 		for _, attach := range emailContent.Attachments {
@@ -138,28 +131,57 @@ func (b *Bemail) HandleEmailParsed(msg config.Message, emailContent parsemail.Em
 */
 func (b *Bemail) HandleEmailText(rmsg config.Message, text string) {
 	rmsg.Text = TrimEmail(text)
+	if rmsg.Text == "" {
+		return
+	}
 	b.Remote <- rmsg
+	// delay in case there is attachment on the email
+	time.Sleep(500 * time.Millisecond)
 }
 
 // handle email htmlbody
 func (b *Bemail) HandleEmailHtml(rmsg config.Message, html string) {
 	plain := html2text.HTML2Text(html)
 	rmsg.Text = TrimEmail(plain)
+	if rmsg.Text == "" {
+		return
+	}
 	b.Remote <- rmsg
-
+	// delay in case there is attachment on the email
+	time.Sleep(500 * time.Millisecond)
 }
 func TrimEmail(emailText string) string {
 	var res string
-	sl := strings.Split(string(emailText), "\r\n")
+	emailText = strings.ReplaceAll(emailText, "\r", "")
+	sl := strings.Split(emailText, "\n")
+	var SkipNextLine bool
 	for _, l := range sl {
-
-		if strings.HasPrefix(l, "On ") && strings.HasSuffix(l, "wrote:") {
+		if SkipNextLine {
+			SkipNextLine = false
 			continue
 		}
-		if strings.HasPrefix(l, ">") || l == "" {
+		l = strings.TrimSuffix(l, " ")
+		if strings.HasPrefix(l, "On ") && strings.Contains(l, "<") {
+			if strings.HasSuffix(l, "=") {
+				SkipNextLine = true
+				continue
+			}
+			if strings.HasSuffix(l, ":") {
+				continue
+			}
+		}
+
+		if l == "" || l == "\r" || l == "\n" {
+			continue
+		}
+		if strings.HasPrefix(l, ">") {
+			if strings.HasSuffix(l, "=") {
+				SkipNextLine = true
+			}
 			continue
 		}
 		res += l + "\n"
+
 	}
 	return strings.TrimSuffix(res, "\n")
 }
@@ -253,7 +275,7 @@ func (b *Bemail) SyncEmailInbox() {
 
 		seqset := new(imap.SeqSet)
 		cr := &imap.SearchCriteria{
-			SentSince: time.Now().Add(-500 * time.Minute),
+			SentSince: time.Now().Add(-5 * time.Minute),
 		}
 		ser, err := b.Client.Search(cr)
 		if err != nil {
