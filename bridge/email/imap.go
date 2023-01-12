@@ -4,7 +4,6 @@ import (
 	"errors"
 	"io"
 	"log"
-	"mime"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -12,8 +11,10 @@ import (
 
 	"github.com/42wim/matterbridge/bridge"
 	"github.com/42wim/matterbridge/bridge/config"
+	"github.com/DusanKasan/parsemail"
+	"github.com/k3a/html2text"
+
 	"github.com/emersion/go-imap"
-	"github.com/emersion/go-message/mail"
 
 	"github.com/emersion/go-imap/client"
 )
@@ -41,7 +42,7 @@ func (b *Bemail) HandleIncomingEmail(emailMsg *imap.Message) {
 		msg := config.Message{
 			Text:     "",
 			Channel:  from.MailboxName + "@" + from.HostName,
-			Username: from.PersonalName,
+			Username: username,
 			UserID:   from.MailboxName + "@" + from.HostName,
 			Avatar:   "",
 			Account:  b.Account,
@@ -58,54 +59,109 @@ func (b *Bemail) HandleIncomingEmail(emailMsg *imap.Message) {
 	}
 }
 func (b *Bemail) HandleEmailContent(msg config.Message, body map[*imap.BodySectionName]imap.Literal) {
-	for section, bodyPart := range body {
-		b.Log.Info(section.BodyPartName.Fields)
-		rmail, err := mail.CreateReader(bodyPart)
+	for _, bodyPart := range body {
+		// b.Log.Info(section.BodyPartName.Fields)
+		emailContent, err := parsemail.Parse(bodyPart)
 		if err != nil {
-			b.Log.Errorf("mail CreateReader func : %s", err)
-			continue
+			b.Log.Infof("parse email body failed : %s", err)
+			return
 		}
-		// only 50 part is allowed , precaution of endless loop
-		for i := 0; i < 50; i++ {
-			p, err := rmail.NextPart()
+		b.HandleEmailParsed(msg, emailContent)
+
+		/*
+			rmail, err := mail.CreateReader(bodyPart)
 			if err != nil {
-				b.Log.Debugf("next Part func : %s", err)
+				b.Log.Errorf("mail CreateReader func : %s", err)
+				continue
+			}
+		*/
+
+		// only 50 part is allowed , precaution of endless loop
+		/*
+			log.Println(emailContent.ContentType)
+			for i := 0; i < 50; i++ {
+				p, err := rmail.NextPart()
+				if err != nil {
+					b.Log.Debugf("next Part func : %s", err)
+					break
+				}
+				b.HandleEmailPart(msg, p)
+			}
+		*/
+	}
+}
+func (b *Bemail) HandleEmailParsed(msg config.Message, emailContent parsemail.Email) {
+	if emailContent.TextBody != "" {
+		b.HandleEmailText(msg, emailContent.TextBody)
+		// make a delay in case there is text with attachment on the email
+		time.Sleep(200 * time.Millisecond)
+	}
+
+	if emailContent.HTMLBody != "" {
+		b.HandleEmailHtml(msg, emailContent.HTMLBody)
+		// make a delay in case there is text with attachment on the email
+		time.Sleep(200 * time.Millisecond)
+	}
+	if emailContent.Attachments != nil {
+		for _, attach := range emailContent.Attachments {
+			fileName := attach.Filename
+
+			if attach.ContentType == "image/jpeg" || attach.ContentType == "image/png" {
+				b.HandleIncomingAttach(msg, attach.Data, attach.ContentType, fileName)
+			}
+		}
+	}
+}
+
+/*
+	func (b *Bemail) HandleEmailPart(msg config.Message, part *mail.Part) {
+		mediatype, mediaParams, err := mime.ParseMediaType(part.Header.Get("Content-Type"))
+		if err != nil {
+			b.Log.Infof("parse email header failed : %s", err)
+			return
+		}
+		contentDisposition := strings.Split(part.Header.Get("Content-Disposition"), ";")[0]
+		switch mediatype {
+		case "multipart/mixed":
+		case "text/plain", "text/html":
+			b.HandleEmailText(msg, part.Body)
+		case "image/jpeg", "image/png":
+			if contentDisposition != "attachment" {
 				break
 			}
-			b.HandleEmailPart(msg, p)
+			fileName := mediaParams["name"]
+			b.HandleIncomingAttach(msg, part.Body, mediatype, fileName)
+		default:
+			// TODO if there is other type to handle
 		}
 	}
-}
-func (b *Bemail) HandleEmailPart(msg config.Message, part *mail.Part) {
-	mediatype, mediaParams, err := mime.ParseMediaType(part.Header.Get("Content-Type"))
-	if err != nil {
-		b.Log.Infof("parse email header failed : %s", err)
-		return
-	}
-	contentDisposition := strings.Split(part.Header.Get("Content-Disposition"), ";")[0]
-
-	switch mediatype {
-	case "multipart/mixed":
-	case "text/plain":
-		b.HandleEmailText(msg, part.Body)
-	case "image/jpeg", "image/png":
-		if contentDisposition != "attachment" {
-			break
-		}
-		fileName := mediaParams["name"]
-		b.HandleIncomingAttach(msg, part.Body, mediatype, fileName)
-	default:
-		// TODO if there is other type to handle
-	}
-}
-func (b *Bemail) HandleEmailText(rmsg config.Message, r io.Reader) {
-	content, err := io.ReadAll(r)
-	if err != nil {
-		b.Log.Println(err)
-		return
-	}
-	rmsg.Text = strings.Split(string(content), "\r\n")[0]
+*/
+func (b *Bemail) HandleEmailText(rmsg config.Message, text string) {
+	rmsg.Text = TrimEmail(text)
 	b.Remote <- rmsg
+}
+
+// handle email htmlbody
+func (b *Bemail) HandleEmailHtml(rmsg config.Message, html string) {
+	plain := html2text.HTML2Text(html)
+	rmsg.Text = TrimEmail(plain)
+	b.Remote <- rmsg
+
+}
+func TrimEmail(emailText string) string {
+	var res string
+	sl := strings.Split(string(emailText), "\r\n")
+	for _, l := range sl {
+
+		if strings.HasPrefix(l, "On ") && strings.HasSuffix(l, "wrote:") {
+			continue
+		}
+		if strings.HasPrefix(l, ">") || l == "" {
+			continue
+		}
+		res += l + "\n"
+	}
+	return strings.TrimSuffix(res, "\n")
 }
 
 func (b *Bemail) HandleIncomingAttach(rmsg config.Message, r io.Reader, ctyp, fileName string) {
@@ -197,7 +253,7 @@ func (b *Bemail) SyncEmailInbox() {
 
 		seqset := new(imap.SeqSet)
 		cr := &imap.SearchCriteria{
-			SentSince: time.Now().Add(-5 * time.Minute),
+			SentSince: time.Now().Add(-500 * time.Minute),
 		}
 		ser, err := b.Client.Search(cr)
 		if err != nil {
