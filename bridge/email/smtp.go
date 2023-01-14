@@ -19,7 +19,7 @@ func (b *Bemail) Send(msg config.Message) (string, error) {
 	e.From = "<" + b.GetString("username") + ">"
 	e.To = []string{msg.Channel}
 
-	e.Subject = "mediamagic Ai bridge"
+	e.Subject = "mediamagic Ai"
 	if msg.Extra != nil {
 		if msg.Protocol == "appservice" {
 			msg.Text = ""

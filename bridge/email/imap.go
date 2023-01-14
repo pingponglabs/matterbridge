@@ -1,9 +1,9 @@
 package bemail
 
 import (
-	"errors"
 	"io"
 	"log"
+	"os"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -26,6 +26,8 @@ type Bemail struct {
 	LastFetchTimeStamp  time.Time
 	*client.Client
 	Inboxes []*imap.MailboxInfo
+
+	connectRetryLock sync.Mutex
 }
 
 func New(cfg *bridge.Config) bridge.Bridger {
@@ -250,29 +252,20 @@ func (b *Bemail) Connect() error {
 	}
 
 	go b.SyncEmailInbox()
+
 	return nil
 }
 func (b *Bemail) SyncEmailInbox() {
 	for {
-		time.Sleep(10 * time.Second)
+		time.Sleep(5 * time.Second)
 
 		_, err := b.Client.Select("INBOX", false)
 		if err != nil {
-			b.Log.Println(err)
-			if errors.Is(err, client.ErrNotLoggedIn) {
-				err := b.Client.Logout()
-				if err != nil {
-					b.Log.Println(err)
-				}
-				err = b.Client.Login(b.GetString("username"), b.GetString("password"))
-				if err != nil {
-					// TODO handle login error with different approach ,
-					b.Log.Fatal(err)
 
-				}
-			}
+			b.Log.Infof("email bridge : select inbox  failed with error %v\n", err)
+			go b.ConnectRetry()
+			return
 		}
-
 		seqset := new(imap.SeqSet)
 		cr := &imap.SearchCriteria{
 			SentSince: time.Now().Add(-5 * time.Minute),
@@ -297,7 +290,7 @@ func (b *Bemail) SyncEmailInbox() {
 					b.Log.Infof("email from %s with subject %q sent on %s \n", msg.Envelope.From[0].MailboxName, msg.Envelope.Subject, msg.Envelope.Date)
 				}
 				b.ProcessedEmailMsgID = append(b.ProcessedEmailMsgID, msg.Envelope.MessageId)
-				b.HandleIncomingEmail(msg)
+				go b.HandleIncomingEmail(msg)
 			}
 		}
 		if err := <-errFetch; err != nil {
@@ -308,4 +301,25 @@ func (b *Bemail) SyncEmailInbox() {
 
 func (b *Bemail) JoinChannel(channel config.ChannelInfo) error {
 	return nil
+}
+
+func (b *Bemail) ConnectRetry() {
+	b.connectRetryLock.Lock()
+	defer b.connectRetryLock.Unlock()
+	for i := 0; i < 10; i++ {
+		err := b.Client.Logout()
+		if err != nil {
+			b.Log.Errorf("logout error  : %v", err)
+		}
+		err = b.Connect()
+		if err != nil {
+			b.Log.Errorf("failed to connect to server attempt number %v, error message : %v", i+1)
+		} else {
+			return
+		}
+		time.Sleep(1 * time.Minute)
+
+	}
+	os.Exit(1)
+
 }
