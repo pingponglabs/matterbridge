@@ -222,7 +222,7 @@ func (b *Bemail) IsProcessed(msgID string) bool {
 func (b *Bemail) Connect() error {
 	b.Log.Println("Connecting to the IMAP server...")
 
-	// Connect to  iamp server
+	// Connect to  imap server
 	c, err := client.DialTLS(b.GetString("IMAP"), nil)
 	if err != nil {
 		return err
@@ -257,7 +257,7 @@ func (b *Bemail) Connect() error {
 }
 func (b *Bemail) SyncEmailInbox() {
 	for {
-		time.Sleep(5 * time.Second)
+		time.Sleep(3 * time.Second)
 
 		_, err := b.Client.Select("INBOX", false)
 		if err != nil {
@@ -268,6 +268,7 @@ func (b *Bemail) SyncEmailInbox() {
 		}
 		seqset := new(imap.SeqSet)
 		cr := &imap.SearchCriteria{
+			Since:     time.Now().Add(-5 * time.Minute),
 			SentSince: time.Now().Add(-5 * time.Minute),
 		}
 		ser, err := b.Client.Search(cr)

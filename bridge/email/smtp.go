@@ -2,6 +2,7 @@ package bemail
 
 import (
 	"bytes"
+	"crypto/tls"
 	"fmt"
 	"io"
 	"net/http"
@@ -14,9 +15,21 @@ import (
 
 func (b *Bemail) Send(msg config.Message) (string, error) {
 	b.Log.Debugf("=> Receiving %#v", msg)
+	emailUser := b.GetString("Username")
+	emailPass := b.GetString("Password")
+	smtpAddrr := b.GetString("SMTP")
+	smtpHost := smtpAddrr
+
+	if sl := strings.Split(smtpAddrr, ":"); len(sl) > 1 {
+		smtpHost = sl[0]
+	}
 
 	e := email.NewEmail()
-	e.From = "<" + b.GetString("username") + ">"
+	username := b.GetString("username")
+	if !strings.Contains(username, "@") {
+		username = fmt.Sprintf("%s@%s", username, smtpHost)
+	}
+	e.From = "<" + username + ">"
 	e.To = []string{msg.Channel}
 
 	e.Subject = "mediamagic Ai"
@@ -31,25 +44,16 @@ func (b *Bemail) Send(msg config.Message) (string, error) {
 	} else {
 		b.HandleText(e, msg.Text)
 	}
-	err := b.SendMail(e)
+	certs := tls.Config{
+		InsecureSkipVerify: true,
+		ServerName: 	   smtpHost,
+	}
+	err := e.SendWithTLS(smtpAddrr, smtp.PlainAuth("", emailUser, emailPass, smtpHost), &certs)
 	if err != nil {
 		b.Log.Errorf("send mail failed to address %s : %s", msg.Channel, err)
 	}
 	return "", err
 
-}
-
-func (b *Bemail) SendMail(e *email.Email) error {
-	emailUser := b.GetString("Username")
-	emailPass := b.GetString("Password")
-	smtpAddrr := b.GetString("SMTP")
-	smtpHost := smtpAddrr
-
-	if sl := strings.Split(smtpAddrr, ":"); len(sl) > 1 {
-		smtpHost = sl[0]
-	}
-
-	return e.Send(smtpAddrr, smtp.PlainAuth("", emailUser, emailPass, smtpHost))
 }
 
 func (b *Bemail) HandleMedia(e *email.Email, msg *config.Message) error {
