@@ -114,8 +114,6 @@ github.com/CloudyKit/jet/v3 v3.0.0/go.mod h1:HKQPgSJmdK8hdoAbKUUWajkHyHo4RaU5rMd
 github.com/DataDog/datadog-go v3.2.0+incompatible/go.mod h1:LButxg5PwREeZtORoXG3tL4fMGNddJ+vMq1mwgfaqoQ=
 github.com/Davincible/goinsta/v3 v3.2.5 h1:x0hPbXeUo8NYfj0Zf5isnZSe4bDr0yohfdj4MLxvuqE=
 github.com/Davincible/goinsta/v3 v3.2.5/go.mod h1:jIDhrWZmttL/gtXj/mkCaZyeNdAAqW3UYjasOUW0YEw=
-github.com/DusanKasan/parsemail v1.2.0 h1:CrzTL1nuPLxB41aO4zE/Tzc9GVD8jjifUftlbTKQQl4=
-github.com/DusanKasan/parsemail v1.2.0/go.mod h1:B9lfMbpVe4DMqPImAOCGti7KEwasnRTrKKn66iQefVs=
 github.com/HdrHistogram/hdrhistogram-go v0.9.0/go.mod h1:nxrse8/Tzg2tg3DZcZjm6qEclQKK70g0KxO61gFFZD4=
 github.com/JalfResi/justext v0.0.0-20170829062021-c0282dea7198/go.mod h1:0SURuH1rsE8aVWvutuMZghRNrNrYEUzibzJfhEYR8L0=
 github.com/Jeffail/gabs v1.4.0 h1://5fYRRTq1edjfIrQGvdkcd22pkYUrHZ5YC/H2GJVAo=
@@ -945,6 +943,8 @@ github.com/ianlancetaylor/demangle v0.0.0-20181102032728-5e5cf60278f6/go.mod h1:
 github.com/ianlancetaylor/demangle v0.0.0-20200824232613-28f6c0f3b639/go.mod h1:aSSvb/t6k1mPoxDqO4vJh6VOCGPwU4O0C2/Eqndh1Sc=
 github.com/ibrahimk9000/goinsta v0.0.0-20221206145429-80984229aea5 h1:qCG5cglpCYExXYM376bjUzKir2YXPzBhz6nYjJjZgbs=
 github.com/ibrahimk9000/goinsta v0.0.0-20221206145429-80984229aea5/go.mod h1:Fnb0yo7Hre/Rtinmby9FUZgBMhRIo+OhD9BcZwG2Ov4=
+github.com/ibrahimk9000/parsemail v0.0.0-20230120200850-fee7d78e9082 h1:XrblvYyFf1Zz6UbEDxM6xMeg9VJX0LFkYLSgN+vTauY=
+github.com/ibrahimk9000/parsemail v0.0.0-20230120200850-fee7d78e9082/go.mod h1:B9lfMbpVe4DMqPImAOCGti7KEwasnRTrKKn66iQefVs=
 github.com/icrowley/fake v0.0.0-20180203215853-4178557ae428/go.mod h1:uhpZMVGznybq1itEKXj6RYw9I71qK4kH+OGMjRC4KEo=
 github.com/ikawaha/kagome.ipadic v1.1.2/go.mod h1:DPSBbU0czaJhAb/5uKQZHMc9MTVRpDugJfX+HddPHHg=
 github.com/imdario/mergo v0.3.5/go.mod h1:2EnlNZ0deacrJVfApfmtdGgDfMuh/nq6Ok1EcJh5FfA=

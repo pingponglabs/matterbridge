@@ -184,4 +184,6 @@ require (
 
 replace github.com/Davincible/goinsta => github.com/ibrahimk9000/goinsta v0.0.0-20221206145429-80984229aea5
 
+replace github.com/DusanKasan/parsemail => github.com/ibrahimk9000/parsemail v0.0.0-20230120200850-fee7d78e9082
+
 go 1.17

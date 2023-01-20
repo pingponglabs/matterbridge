@@ -1,7 +1,6 @@
 package bemail
 
 import (
-	"encoding/base64"
 	"io"
 	"log"
 	"mime"
@@ -86,6 +85,14 @@ func (b *Bemail) HandleEmailParsed(msg config.Message, emailContent parsemail.Em
 			if attach.ContentType == "image/jpeg" || attach.ContentType == "image/png" {
 				b.HandleIncomingAttach(msg, attach.Data, attach.ContentType, fileName)
 			}
+			if attach.ContentType == "text/plain" {
+				txt, err := io.ReadAll(attach.Data)
+				if err != nil {
+					b.Log.Println(err)
+					return
+				}
+				b.HandleEmailText(msg, string(txt))
+			}
 		}
 	}
 	if emailContent.EmbeddedFiles != nil {
@@ -113,14 +120,6 @@ func (b *Bemail) HandleEmailText(rmsg config.Message, text string) {
 	if rmsg.Text == "" {
 		return
 	}
-	// test if text is base64 encoded
-	if strings.HasSuffix(rmsg.Text, "=") {
-		plain, err := base64.StdEncoding.DecodeString(rmsg.Text)
-		if err == nil {
-			rmsg.Text = string(plain)
-		}
-	}
-
 	b.Remote <- rmsg
 	// delay in case there is attachment on the email
 	time.Sleep(500 * time.Millisecond)
@@ -161,11 +160,6 @@ func TrimEmail(emailText string) string {
 
 	}
 	var resStr string
-	if len(res) > 0 {
-		if strings.HasPrefix(res[len(res)-1], "sent") || strings.HasPrefix(res[len(res)-1], "Sent") {
-			res = res[:len(res)-1]
-		}
-	}
 
 	for _, l := range res {
 		resStr += l + "\n"
