@@ -21,6 +21,7 @@ func (b *AppServMatrix) initControlRoom() {
 	b.uploadAvatar()
 
 	time.Sleep(15 * time.Second)
+
 	resp, err := b.apsCli.CreateRoom(&gomatrix.ReqCreateRoom{
 		Name:   controlRoom,
 		Invite: []id.UserID{id.UserID(b.GetString("MainUser"))},
@@ -131,7 +132,7 @@ func (b *AppServMatrix) joinRoom(roomId, userID, Token string) error {
 	}
 	return nil
 }
-func (b *AppServMatrix) AddNewChannel(channel, roomId, remoteId string, isDirect bool) {
+func (b *AppServMatrix) AddNewChannel(channel, roomId, remoteId ,spaceId string, isDirect bool,) {
 
 	b.setRoomInfo(channel, &MatrixRoomInfo{
 		RoomName: channel,
@@ -139,6 +140,7 @@ func (b *AppServMatrix) AddNewChannel(channel, roomId, remoteId string, isDirect
 		Members:  []ChannelMember{},
 		IsDirect: isDirect,
 		RemoteId: remoteId,
+		SpaceId: spaceId,
 	})
 }
 
@@ -169,6 +171,7 @@ func (b *AppServMatrix) createRoom(roomName string, members []string, isDirect b
 		alias = ""
 
 	}
+
 	resp, err := b.apsCli.CreateRoom(&gomatrix.ReqCreateRoom{
 		RoomAliasName: alias,
 		Name:          roomName,

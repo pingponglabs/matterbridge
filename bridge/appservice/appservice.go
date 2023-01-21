@@ -18,6 +18,7 @@ import (
 	"github.com/gorilla/mux"
 
 	gomatrix "maunium.net/go/mautrix"
+	"maunium.net/go/mautrix/event"
 	id "maunium.net/go/mautrix/id"
 
 	"github.com/42wim/matterbridge/bridge"
@@ -105,6 +106,7 @@ type MatrixRoomInfo struct {
 	RoomName string          `json:"room_name,omitempty"`
 	Alias    string          `json:"alias,omitempty"`
 	Members  []ChannelMember `json:"members,omitempty"`
+	SpaceId  string          `json:"space_id,omitempty"`
 	IsDirect bool            `json:"is_direct,omitempty"`
 	RemoteId string          `json:"remote_id,omitempty"`
 	Metadata interface{}     `json:"metadata,omitempty"`
@@ -186,7 +188,6 @@ func New(cfg *bridge.Config) bridge.Bridger {
 	b.NicknameMap = make(map[string]NicknameCacheEntry)
 	b.roomsInfo = make(map[string]*MatrixRoomInfo)
 	b.virtualUsers = make(map[string]MemberInfo)
-	b.loadState()
 	return b
 }
 
@@ -204,7 +205,9 @@ func (b *AppServMatrix) Connect() error {
 	go func() {
 		log.Fatal(http.ListenAndServe(":"+b.GetString("Port"), mx))
 	}()
+	b.loadState()
 	go b.initControlRoom()
+	b.roomSpaceRoutineCheck()
 	return nil
 }
 
@@ -418,14 +421,30 @@ func (b *AppServMatrix) handleChannelInfoEvent(channelName, channelId string, me
 
 	if !b.isChannelExist(channelName) {
 
+		spaceInfo, ok := b.GetNetworkSpace()
+
+		if !ok {
+			log.Println(fmt.Errorf("failed to get space info"))
+			return
+		}
+
 		roomId, err := b.createRoom(channelName, []string{b.GetString("MainUser")}, false)
 		if err != nil {
 			log.Println(fmt.Errorf("failed to create room %s : %w", channelName, err))
 			return
 		}
+		contentJson := map[string]interface{}{"via": []string{b.apsCli.UserID.Homeserver()}}
+		respSpaceBind, err := b.apsCli.SendStateEvent(id.RoomID(spaceInfo.Alias), event.StateSpaceChild, roomId, contentJson)
+
+		if err != nil {
+			b.Log.Println(err)
+
+		}
+		b.Log.Println(respSpaceBind)
+
 		b.sendRoomAvatarEvent(roomId)
 
-		b.AddNewChannel(channelName, roomId, channelId, false)
+		b.AddNewChannel(channelName, roomId, channelId, spaceInfo.Alias, false)
 
 		b.setRoomMap(roomId, channelName)
 	} else {
@@ -564,12 +583,30 @@ func (b *AppServMatrix) handleDirectMessages(username, channelId string) {
 
 		IsDirect: true,
 	})
+
+	spaceInfo, ok := b.GetNetworkSpace()
+
+	if !ok {
+		log.Println(fmt.Errorf("failed to get space info"))
+		return
+	}
+
+	contentJson := map[string]interface{}{"via": []string{b.apsCli.UserID.Homeserver()}}
+	respSpaceBind, err := b.apsCli.SendStateEvent(id.RoomID(spaceInfo.Alias), event.StateSpaceChild, resp.RoomID, contentJson)
+
+	if err != nil {
+		b.Log.Println(err)
+
+	}
+	b.Log.Println(respSpaceBind)
+	// add sendstate event
+
 	time.Sleep(2 * time.Second)
 	if err != nil {
 		log.Println(fmt.Errorf("failed to  create direct room : %w", err))
 		return
 	}
-	b.AddNewChannel(username, resp.RoomID, channelId, true)
+	b.AddNewChannel(username, resp.RoomID, channelId, spaceInfo.Alias, true)
 	b.addNewMember(username, username)
 
 	b.setRoomMap(resp.RoomID, username)
@@ -663,10 +700,134 @@ func (b *AppServMatrix) leaveUsersInChannel(channelName string, ExternMembers []
 
 	return leaveMembers
 }
+func (b *AppServMatrix) checkSpaceExist(spaceName string) (*MatrixRoomInfo, error) {
+	spaceInfo, ok := b.getRoomInfo(spaceName)
+	if !ok {
+		alias := "#" + spaceName + ":" + b.apsCli.UserID.Homeserver()
+		respResolve, err := b.apsCli.ResolveAlias(id.RoomAlias(alias))
+		if err != nil || respResolve.RoomID == "" {
+			b.Log.Println(err)
+			return nil, err
+		}
+		b.AddNewChannel(spaceName, respResolve.RoomID.String(), respResolve.RoomID.String(), "", false)
+		spaceInfo, ok = b.getRoomInfo(spaceName)
+		if !ok {
+			b.Log.Println(fmt.Errorf("failed to get space info"))
+			return nil, err
+		}
+
+	}
+	respInvite, err := b.apsCli.InviteUser(id.RoomID(spaceInfo.Alias), &gomatrix.ReqInviteUser{UserID: id.UserID(b.GetString("MainUser"))})
+	if err != nil {
+		b.Log.Println(err)
+	}
+	b.Log.Debugf("invite user to space %s", respInvite)
+	b.saveState()
+	return spaceInfo, nil
+}
+
+func (b *AppServMatrix) CreateSpace(spaceName string, parentId string) error {
+
+	resp, err := b.apsCli.CreateRoom(&gomatrix.ReqCreateRoom{
+		Visibility:      "public",
+		RoomAliasName:   spaceName,
+		Name:            spaceName,
+		Topic:           "",
+		Invite:          []id.UserID{id.UserID(b.GetString("MainUser"))},
+		Invite3PID:      []gomatrix.ReqInvite3PID{},
+		CreationContent: map[string]interface{}{"type": "m.space"},
+		InitialState:    []*event.Event{},
+		Preset:          "public_chat",
+		IsDirect:        false,
+		RoomVersion:     "",
+	})
+	if err != nil {
+		b.Log.Println(err)
+		return err
+	}
+	if parentId != "" {
+		contentJson := map[string]interface{}{"via": []string{b.apsCli.UserID.Homeserver()}}
+		respSpaceBind, err := b.apsCli.SendStateEvent(id.RoomID(parentId), event.StateSpaceChild, resp.RoomID.String(), contentJson)
+		if err != nil {
+			b.Log.Println(err)
+
+		}
+		b.Log.Debugf("bind child space %s to %s", respSpaceBind, parentId)
+	}
+	b.AddNewChannel(spaceName, resp.RoomID.String(), resp.RoomID.String(), parentId, false)
+
+	b.setRoomMap(resp.RoomID.String(), spaceName)
+
+	b.saveState()
+	return nil
+
+}
+func (b *AppServMatrix) checkSpace(protocol string) error {
+	protocol += "dk"
+
+	networkSpaceInfo, ok := b.getRoomInfo(protocol)
+	if !ok {
+		var err error
+		networkSpaceInfo, err = b.checkSpaceExist(protocol)
+		if err != nil {
+			b.Log.Println(err)
+			err = b.CreateSpace(protocol, "")
+			if err != nil {
+				b.Log.Println(err)
+				return err
+			}
+			networkSpaceInfo, ok = b.getRoomInfo(protocol)
+			if !ok {
+				b.Log.Println(fmt.Errorf("failed to get space info"))
+			}
+
+		}
+	}
+	networkName := strings.TrimPrefix(b.GetString("apsPrefix"), "_")
+	networkName = strings.TrimSuffix(networkName, "_")
+	networkName += "dk"
+
+	_, ok = b.getRoomInfo(networkName)
+	if !ok {
+		_, err := b.checkSpaceExist(networkName)
+		if err != nil {
+			b.Log.Println(err)
+			err := b.CreateSpace(networkName, networkSpaceInfo.Alias)
+
+			if err != nil {
+				log.Println(err)
+				return err
+			}
+		}
+		_, ok = b.getRoomInfo(networkName)
+		if !ok {
+			log.Println(fmt.Errorf("failed to get space info"))
+			return err
+		}
+
+	}
+	return nil
+
+}
+func (b *AppServMatrix) GetNetworkSpace() (*MatrixRoomInfo, bool) {
+	networkName := strings.TrimPrefix(b.GetString("apsPrefix"), "_")
+	networkName = strings.TrimSuffix(networkName, "_")
+	networkName += "dk"
+
+	return b.getRoomInfo(networkName)
+}
+
+var once sync.Once
 
 func (b *AppServMatrix) Send(msg config.Message) (string, error) {
 
 	b.Log.Debugf("=> Receiving %#v", msg)
+
+	once.Do(func() {
+		// TODO add space to old rooms
+		b.checkSpace(msg.Protocol)
+
+	})
 	switch msg.Protocol {
 	case "telegram":
 		msg.Channel = msg.ChannelName
@@ -1332,4 +1493,29 @@ func (b *AppServMatrix) handleUploadFile(msg *config.Message, channel string, fi
 		}
 	}
 	b.Log.Debugf("result: %#v", res)
+}
+
+func (b *AppServMatrix) roomSpaceRoutineCheck() {
+
+	for _, v := range b.roomsInfo {
+		if v.SpaceId == "" {
+			b.AddRoomToSpace(v)
+		}
+	}
+}
+
+// send space event
+func (b *AppServMatrix) AddRoomToSpace(roomInfo *MatrixRoomInfo) {
+	// get space info
+	spaceInfo, ok := b.GetNetworkSpace()
+	if !ok {
+		b.Log.Errorf("space not found")
+	}
+	contentJson := map[string]interface{}{"via": []string{b.apsCli.UserID.Homeserver()}}
+	respSpaceBind, err := b.apsCli.SendStateEvent(id.RoomID(spaceInfo.Alias), event.StateSpaceChild, roomInfo.Alias, contentJson)
+	if err != nil {
+		b.Log.Errorf("Error sending space child event: %s", err)
+	} else {
+		b.Log.Debugf("Space child event sent: %s", respSpaceBind.EventID)
+	}
 }
