@@ -16,7 +16,7 @@ func (a *AppServMatrix) translateToMatrixMention(platform, text string) string {
 				return strings.ReplaceAll(text, username, htmlText)
 			} else {
 				if userInfo, ok := a.getVirtualUserInfo(username); ok {
-					htmlText = fmt.Sprintf("<a href='https://matrix.to/#/%s'>%s</a>", userInfo.Id, username+":")
+					htmlText = fmt.Sprintf("<a href='https://matrix.to/#/%s'>%s</a>", userInfo.MatrixID, username+":")
 					return strings.ReplaceAll(text, username, htmlText)
 
 				}
@@ -45,6 +45,7 @@ func (a *AppServMatrix) translateToMatrixMention(platform, text string) string {
 	return text
 }
 
+// TODO CHANGE RANGE VIRTUAL USERS
 func (a *AppServMatrix) incomingMention(protocol string, text string, mentions map[string]string) string {
 
 	switch protocol {
@@ -54,7 +55,7 @@ func (a *AppServMatrix) incomingMention(protocol string, text string, mentions m
 
 				if strings.Contains(text, k+":") {
 
-					htmlText := fmt.Sprintf("<a href='https://matrix.to/#/%s'>%s</a>", v.Id, k)
+					htmlText := fmt.Sprintf("<a href='https://matrix.to/#/%s'>%s</a>", v.MatrixID, k)
 					text = strings.ReplaceAll(text, k+":", htmlText)
 
 				}
@@ -71,7 +72,7 @@ func (a *AppServMatrix) incomingMention(protocol string, text string, mentions m
 
 			for k, v := range a.virtualUsers {
 				if strings.Contains(text, "@"+k) {
-					htmlText := fmt.Sprintf("<a href='https://matrix.to/#/%s'>%s</a>", v.Id, k)
+					htmlText := fmt.Sprintf("<a href='https://matrix.to/#/%s'>%s</a>", v.MatrixID, k)
 					text = strings.ReplaceAll(text, "@"+k, htmlText)
 
 				}
@@ -87,7 +88,7 @@ func (a *AppServMatrix) incomingMention(protocol string, text string, mentions m
 	case "telegram":
 		for k, v := range mentions {
 			if userInfo, ok := a.getVirtualUserInfo(v); ok {
-				htmlText := fmt.Sprintf("<a href='https://matrix.to/#/%s'>%s</a>", userInfo.Id, v)
+				htmlText := fmt.Sprintf("<a href='https://matrix.to/#/%s'>%s</a>", userInfo.MatrixID, v)
 				text = strings.ReplaceAll(text, k, htmlText)
 			}
 
@@ -124,10 +125,10 @@ func (a *AppServMatrix) outcomingMention(protocol, text, htmlText string) (strin
 	mentions := make(map[string]string)
 	for id, mention := range mentionss {
 		for k, v := range a.virtualUsers {
-			if v.Id == id {
+			if v.MatrixID == id {
 
 				text = strings.ReplaceAll(text, mention, a.externMention(protocol, k))
-				mentions[a.externMention(protocol, k)] = v.RemoteId
+				mentions[a.externMention(protocol, k)] = v.UserID
 				break
 			}
 		}
@@ -160,7 +161,7 @@ func (a *AppServMatrix) generateMatrixHtmlMention(username, text string) string 
 		return strings.ReplaceAll(text, username, htmlText)
 	} else {
 		if userInfo, ok := a.getVirtualUserInfo(username); ok {
-			htmlText = fmt.Sprintf("<a href='https://matrix.to/#/%s'>%s</a>", userInfo.Id, username)
+			htmlText = fmt.Sprintf("<a href='https://matrix.to/#/%s'>%s</a>", userInfo.MatrixID, username)
 			return strings.ReplaceAll(text, username, htmlText)
 
 		}

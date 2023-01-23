@@ -1,6 +1,7 @@
 package bappservice
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"regexp"
@@ -36,12 +37,11 @@ func (b *AppServMatrix) createVirtualUsers(member, remoteID string) (MemberInfo,
 		log.Println(err)
 	}
 	return MemberInfo{
-		Channels:  []ChannelsInvite{},
-		Username:  member,
-		Token:     resp.AccessToken,
-		Id:        string(resp.UserID),
-		RemoteId:  remoteID,
-		Registred: true,
+		Username:    member,
+		MatrixToken: resp.AccessToken,
+		MatrixID:    string(resp.UserID),
+		UserID:      remoteID,
+		Registred:   true,
 	}, nil
 
 }
@@ -65,97 +65,87 @@ func (b *AppServMatrix) GetNotExistUsers(members map[string]string) map[string]s
 }
 
 func (b *AppServMatrix) addNewMembers(channel string, newMembers map[string]string) {
-	roomInfo, ok := b.getRoomInfo(channel)
+	_, ok := b.getChannelInfo(channel)
 	if !ok {
 		return
 	}
-	b.Lock()
-	defer b.Unlock()
-	for k, v := range newMembers {
-		exist := false
-		for _, m := range roomInfo.Members {
-			if k == m.UserID {
-				exist = true
-				break
-			}
-		}
-		if !exist {
-			roomInfo.Members[k] = ChannelMember{
-				Name:   v,
-				UserID: k,
-				Joined: false,
-			}
-		}
+	for k, _ := range newMembers {
+		b.addNewMember(channel, k)
 	}
 
 }
-func (b *AppServMatrix) addNewMember(channel, newMember, userID string) {
-	roomInfo, ok := b.getRoomInfo(channel)
-	if !ok {
-		return
-	}
-	b.Lock()
+func (b *AppServMatrix) addNewMember(channel, userID string) {
+	exist, err := b.DbStore.isUserInChannel(channel, userID)
+	if err != nil {
+		b.Log.Errorf("Error getting user info from database: %v", err)
 
-	roomInfo.Members[userID] = ChannelMember{
-		Name:   newMember,
-		UserID: userID,
-		Joined: false,
 	}
-	b.Unlock()
+	if !exist {
+		b.DbStore.setUserForChannel(channel, userID, false)
+	}
 
 }
 
-func (b *AppServMatrix) getVirtualUserInfo(mtxID string) (MemberInfo, bool) {
-	b.RLock()
-	defer b.RUnlock()
+func (b *AppServMatrix) getVirtualUserInfo(userID string) (*MemberInfo, bool) {
 
-	for k, v := range b.virtualUsers {
-		if k == mtxID {
-			return v, true
+	memberInfo, err := b.DbStore.getUserByID(userID)
+	if err != nil {
+		if !errors.Is(err, ErrUserNotFound) {
+			b.Log.Errorf("Error getting user info from database: %v", err)
 		}
+		return nil, false
 	}
-	return MemberInfo{}, false
+	return memberInfo, true
 }
 
-func (b *AppServMatrix) addVirtualUser(username string, usersInfo MemberInfo) {
-	b.Lock()
-	b.virtualUsers[username] = usersInfo
-	b.Unlock()
+// get virtual user from database by matrix id
+func (b *AppServMatrix) getVirtualUserFromMtxId(mtxID string) (*MemberInfo, bool) {
 
-}
-
-func (b *AppServMatrix) getUsernameFromMtxId(userId string) string {
-	b.RLock()
-	defer b.RUnlock()
-
-	for i, v := range b.virtualUsers {
-		if userId == v.Id {
-			return i
+	memberInfo, err := b.DbStore.getUserByMatrixID(mtxID)
+	if err != nil {
+		if !errors.Is(err, ErrUserNotFound) {
+			b.Log.Errorf("Error getting user info from database: %v", err)
 		}
+		return nil, false
 	}
-	return ""
+	return memberInfo, true
+}
+
+// update virtual user info on database
+
+func (b *AppServMatrix) addVirtualUser(usersInfo MemberInfo) error {
+
+	Err := b.DbStore.registerUser(&usersInfo)
+	if Err != nil {
+		return Err
+	}
+	return nil
+
+}
+
+func (b *AppServMatrix) getUsernameFromMtxId(mtxID string) (*MemberInfo, bool) {
+	// get user from db by matrix id
+
+	MemberInfo, err := b.DbStore.getUserByMatrixID(mtxID)
+	if err != nil {
+		if !errors.Is(err, ErrUserNotFound) {
+			b.Log.Errorf("Error getting user info from database: %v", err)
+		}
+		return nil, false
+	}
+	return MemberInfo, true
 
 }
 func (b *AppServMatrix) newVirtualUserMtxClient(mtxID string) (*matrix.Client, error) {
 	b.RLock()
 	defer b.RUnlock()
 
-	if val, ok := b.virtualUsers[mtxID]; ok {
-		return matrix.NewClient(b.GetString("Server"), val.Id, val.Token)
+	if val, ok := b.getUsernameFromMtxId(mtxID); ok {
+		return matrix.NewClient(b.GetString("Server"), val.MatrixID, val.MatrixToken)
 	}
 	return nil, fmt.Errorf(" username %s not exist on the appservice database", mtxID)
 }
 
-func (b *AppServMatrix) addUsersId(usersId map[string]string) {
-	for k, v := range usersId {
-		if userInfo, ok := b.virtualUsers[k]; ok {
-
-			userInfo.RemoteId = v
-			b.virtualUsers[k] = userInfo
-		}
-	}
-	b.saveState()
-}
 func (b *AppServMatrix) getUserMapInfo(userID string) (UserMapInfo, bool) {
 	b.RLock()
 	defer b.RUnlock()

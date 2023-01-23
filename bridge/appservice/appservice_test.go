@@ -49,7 +49,6 @@ func TestAppServMatrix_Connect(t *testing.T) {
 	}
 	b.Connect()
 	channelMember := []string{"Spr0cket"}
-	b.loadState()
 
 	msg := config.Message{
 		Text:      "hi good morning",
@@ -71,7 +70,6 @@ func TestAppServMatrix_Connect(t *testing.T) {
 	}
 
 	b.Send(msg)
-	b.saveState()
 	time.Sleep(4 * time.Minute)
 }
 func TestAppServMatrix_Event(t *testing.T) {

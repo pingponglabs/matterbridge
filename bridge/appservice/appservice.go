@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"io"
-	"io/ioutil"
 	"log"
 	"net/http"
 	"time"
@@ -16,6 +15,9 @@ import (
 	"sync"
 
 	"github.com/gorilla/mux"
+
+	// import sqlite3 driver
+	_ "github.com/mattn/go-sqlite3"
 
 	gomatrix "maunium.net/go/mautrix"
 	id "maunium.net/go/mautrix/id"
@@ -103,33 +105,28 @@ type AppServMatrix struct {
 	AvatarUrl      string
 	rateMutex      sync.RWMutex
 	RemoteNetwork  string
+	DbStore        AppServStore
 	sync.RWMutex
 	*bridge.Config
 }
 type ChannelInfo struct {
-	ChannelName     string                   `json:"room_name,omitempty"`
-	MtxRoomID       string                   `json:"alias,omitempty"`
-	Members         map[string]ChannelMember `json:"members,omitempty"`
-	IsDirect        bool                     `json:"is_direct,omitempty"`
-	RemoteChannelID string                   `json:"remote_id,omitempty"`
-	Metadata        interface{}              `json:"metadata,omitempty"`
+	RemoteName   string `json:"remote_name,omitempty"`
+	MatrixRoomID string `json:"matrix_room_id,omitempty"`
+	IsDirect     bool   `json:"is_direct,omitempty"`
+	RemoteID     string `json:"remote_id,omitempty"`
 }
 type ChannelMember struct {
-	Name   string `json:"name,omitempty"`
-	UserID string `json:"user_id,omitempty"`
-	Joined bool   `json:"joined,omitempty"`
+	ChannelID string `json:"name,omitempty"`
+	UserID    string `json:"user_id,omitempty"`
+	Joined    bool   `json:"joined,omitempty"`
 }
-type ChannelsInvite struct {
-	Channel string `json:"channel,omitempty"`
-	Joined  bool   `json:"joined,omitempty"`
-}
+
 type MemberInfo struct {
-	Channels  []ChannelsInvite `json:"channels,omitempty"`
-	Username  string           `json:"username,omitempty"`
-	Token     string           `json:"token,omitempty"`
-	Id        string           `json:"id,omitempty"`
-	RemoteId  string           `json:"remote_id,omitempty"`
-	Registred bool
+	Username    string `json:"username,omitempty"`
+	MatrixToken string `json:"matrix_token,omitempty"`
+	MatrixID    string `json:"matrix_id,omitempty"`
+	UserID      string `json:"user_id,omitempty"`
+	Registred   bool   `json:"registred,omitempty"`
 }
 
 type appserviceData struct {
@@ -141,57 +138,6 @@ type appserviceData struct {
 	AvatarUrl      string `json:"avatar_url,omitempty"`
 }
 
-func (b *AppServMatrix) saveState() {
-	b.RLock()
-	data := appserviceData{
-		RoomsInfo:      b.channelsInfo,
-		VirtualUsers:   b.virtualUsers,
-		UsersMap:       b.UsersMap,
-		RemoteProtocol: b.RemoteProtocol,
-		AvatarUrl:      b.AvatarUrl,
-	}
-	br, err := json.MarshalIndent(data, "", " ")
-	if err != nil {
-		log.Println(br)
-	}
-	b.RUnlock()
-	err = ioutil.WriteFile(b.GetString("StorePath"), br, 0666) ////tmp/room-info.json
-	if err != nil {
-		log.Println(br)
-		return
-	}
-}
-
-func (b *AppServMatrix) loadState() {
-	data := appserviceData{
-		RoomsInfo:      map[string]*ChannelInfo{},
-		VirtualUsers:   map[string]MemberInfo{},
-		UsersMap:       map[string]UserMapInfo{},
-		RemoteProtocol: "",
-		AvatarUrl:      "",
-	}
-	br, err := ioutil.ReadFile(b.GetString("StorePath"))
-	if err != nil {
-		log.Println(br)
-		return
-	}
-	b.Lock()
-	err = json.Unmarshal(br, &data)
-	if err != nil {
-		log.Println(br)
-	}
-	b.channelsInfo = data.RoomsInfo
-	b.virtualUsers = data.VirtualUsers
-	b.RemoteProtocol = data.RemoteProtocol
-	b.UsersMap = data.UsersMap
-	b.AvatarUrl = data.AvatarUrl
-	b.Unlock()
-	alias := b.getroomsInfoAliasMap()
-	for k, v := range alias {
-		b.setRoomMap(v, k)
-	}
-}
-
 func New(cfg *bridge.Config) bridge.Bridger {
 	b := &AppServMatrix{Config: cfg}
 	b.RoomMap = make(map[string]string)
@@ -199,7 +145,6 @@ func New(cfg *bridge.Config) bridge.Bridger {
 	b.channelsInfo = make(map[string]*ChannelInfo)
 	b.virtualUsers = make(map[string]MemberInfo)
 	b.UsersMap = make(map[string]UserMapInfo)
-	b.loadState()
 	return b
 }
 
@@ -218,6 +163,21 @@ func (b *AppServMatrix) Connect() error {
 		log.Fatal(http.ListenAndServe(":"+b.GetString("Port"), mx))
 	}()
 	go b.initControlRoom()
+	err = b.DbStore.NewDbConnection("sqlite3", "test.db")
+	if err != nil {
+		return err
+	}
+	/*
+		err = b.DbStore.createDatabase("test")
+		if err != nil {
+			return err
+		}
+	*/
+	err = b.DbStore.CreateTables()
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -281,49 +241,46 @@ func (b *AppServMatrix) handleAppServEvent(event *matrix.Event) {
 
 }
 
-func (b *AppServMatrix) handleDirectInvites(userId, roomId, Sender string) error {
+func (b *AppServMatrix) handleDirectInvites(mtxUserId, roomId, Sender string) error {
 	// create Channel if not exist (direct or not)
-	if userId == "" {
+	if mtxUserId == "" {
 		_, err := b.apsCli.JoinRoom(roomId, "", nil)
 		if err != nil {
 			return err
 		}
-		userId = b.apsCli.UserID.String()
+		mtxUserId = b.apsCli.UserID.String()
 	}
-	userInfo, ok := b.getVirtualUserInfo(userId)
+	userInfo, ok := b.getUsernameFromMtxId(mtxUserId)
 
 	if !ok {
-		return fmt.Errorf("user %s not exist on appservice database", userId)
+		return fmt.Errorf("user %s not exist on appservice database", mtxUserId)
 	}
-	remoteUserInfo, ok := b.getUserMapInfo(userInfo.RemoteId)
 
-	if !ok {
-		return fmt.Errorf("user %s not exist on appservice database", userInfo.RemoteId)
-	}
-	mc, errmtx := b.newVirtualUserMtxClient(userId)
+	mc, errmtx := b.newVirtualUserMtxClient(mtxUserId)
 	if errmtx != nil {
 		return errmtx
 	}
-
-	_, err := mc.JoinRoom(roomId, "", nil)
+	err := mc.SetDisplayName(userInfo.Username)
+	if err != nil {
+		log.Println(err)
+	}
+	_, err = mc.JoinRoom(roomId, "", nil)
 	if err != nil {
 		return err
 	}
 	if Sender == b.apsCli.UserID.String() {
 		return nil
 	}
-	channelName := userInfo.RemoteId
+	channelName := userInfo.UserID
 
-	b.setRoomInfo(channelName, &ChannelInfo{
-		ChannelName: channelName,
-		MtxRoomID:   roomId,
-		Members: map[string]ChannelMember{userId: ChannelMember{Name: remoteUserInfo.Username,
-			UserID: userId}},
-		IsDirect: true,
-		Metadata: nil,
+	b.setRoomInfobyMtxID(channelName, []string{mtxUserId}, &ChannelInfo{
+		RemoteName:   channelName,
+		MatrixRoomID: roomId,
+		IsDirect:     true,
+		RemoteID:     roomId,
 	})
 	b.setRoomMap(roomId, channelName)
-	b.saveState()
+	// b.saveState()
 	return nil
 
 }
@@ -337,7 +294,7 @@ func (b *AppServMatrix) handleInvites(mtxID, roomId string) error {
 		return nil
 	}
 
-	userName, ok := b.getVirtualUserInfo(mtxID)
+	userInfo, ok := b.getVirtualUserFromMtxId(mtxID)
 	if !ok {
 		return fmt.Errorf("user %s not found in the appservice database", mtxID)
 	}
@@ -349,35 +306,38 @@ func (b *AppServMatrix) handleInvites(mtxID, roomId string) error {
 	if err != nil {
 		return err
 	}
-	b.validateInvite(roomId, userName.RemoteId)
-	b.saveState()
+	b.validateInvite(roomId, userInfo.UserID)
 	return nil
 
 }
 func (b *AppServMatrix) validateInvite(roomId, mtxID string) {
 
-	channel, ok := b.getRoomMapChannel(roomId)
+	// update the virtual user joined status
+	b.UpdateVirtualUserJoinedStatus(mtxID, roomId, true)
+
+}
+func (b *AppServMatrix) UpdateVirtualUserJoinedStatus(mtxID, roomId string, joined bool) {
+	channelInfo, ok := b.getChannelInfoByMtxID(roomId)
 	if !ok {
 		return
 	}
-	roomInfo, ok := b.getRoomInfo(channel)
+	userInfo, ok := b.getVirtualUserFromMtxId(mtxID)
 	if !ok {
 		return
 	}
+	err := b.DbStore.updateUserJoinedStatus(userInfo.MatrixID, channelInfo.RemoteID, joined)
 
-	b.Lock()
-	defer b.Unlock()
-
-	if v, ok := roomInfo.Members[mtxID]; ok {
-		v.Joined = true
-		roomInfo.Members[mtxID] = v
+	if err != nil {
+		b.Log.Error(err)
 	}
+
 }
 
 func (b *AppServMatrix) Disconnect() error {
 	return nil
 }
 
+// TODO : STILL NOT UPDATED
 func (b *AppServMatrix) JoinChannel(channel config.ChannelInfo) error {
 
 	go func() {
@@ -435,54 +395,35 @@ func (b *AppServMatrix) handleChannelInfoEvent(channelName, channelID string, me
 	}
 	b.addNewMembers(channelID, members)
 
-	b.saveState()
 	go b.InviteUsersLoop(channelID)
 
 }
-func (b *AppServMatrix) InviteUsersLoop(channel string) {
-	roomInfo, ok := b.getRoomInfo(channel)
+func (b *AppServMatrix) InviteUsersLoop(channelID string) {
+	roomInfo, ok := b.getChannelInfo(channelID)
 	if !ok {
 		return
 	}
 
-	var failedJoinIndexes []string
-	for k, v := range roomInfo.Members {
+	members, err := b.DbStore.getChannelMembersState(channelID)
+	if err != nil {
+		b.Log.Error(err)
+		return
+	}
+	for _, v := range members {
 		if !v.Joined {
 			time.Sleep(1 * time.Second)
-			userInfo, ok := b.getUserMapInfo(v.UserID)
+
+			memberInfo, ok := b.getVirtualUserInfo(v.UserID)
 			if !ok {
 				continue
 			}
-			memberInfo, ok := b.getVirtualUserInfo(userInfo.MtxID)
-			if !ok {
-				failedJoinIndexes = append(failedJoinIndexes, k)
-				continue
-			}
-			err := b.inviteToRoom(roomInfo.MtxRoomID, []string{memberInfo.Id})
+			err := b.inviteToRoom(roomInfo.MatrixRoomID, []string{memberInfo.MatrixID})
 			if err != nil {
 				continue
 			}
 		}
 	}
-	for _, v := range failedJoinIndexes {
-		if vv, ok := roomInfo.Members[v]; ok && vv.Joined {
 
-			time.Sleep(1 * time.Second)
-			userInfo, ok := b.getUserMapInfo(vv.UserID)
-			if !ok {
-				continue
-			}
-			memberInfo, ok := b.getVirtualUserInfo(userInfo.MtxID)
-			if !ok {
-				continue
-			}
-			err := b.inviteToRoom(roomInfo.MtxRoomID, []string{memberInfo.Id})
-			if err != nil {
-				continue
-			}
-
-		}
-	}
 }
 
 func (b *AppServMatrix) registerUsersList(users map[string]string) {
@@ -495,12 +436,11 @@ func (b *AppServMatrix) registerUsersList(users map[string]string) {
 			continue
 		}
 		time.Sleep(1 * time.Second)
-		b.addVirtualUser(memberID.Id, memberID)
+		b.addVirtualUser(memberID)
 		b.addUserMapInfo(k, UserMapInfo{
-			MtxID:    memberID.Id,
+			MtxID:    memberID.MatrixID,
 			Username: v,
 		})
-		b.saveState()
 
 	}
 }
@@ -516,29 +456,24 @@ func (b *AppServMatrix) handleDirectMessages(username, userID, channelID string)
 	if b.isChannelExist(username) {
 		return
 	}
-	userInfo, _ := b.getUserMapInfo(userID)
 
-	_, ok := b.getVirtualUserInfo(userInfo.MtxID)
+	_, ok := b.getVirtualUserInfo(userID)
 	if !ok {
 		memberID, err := b.createVirtualUsers(username, userID)
 		if err != nil {
 			log.Println(err)
 			return
 		}
-		b.addVirtualUser(username, memberID)
+		b.addVirtualUser(memberID)
 
 	}
-	userInfo, ok = b.getUserMapInfo(userID)
+	mtxInfo, ok := b.getVirtualUserInfo(userID)
 	if !ok {
+		log.Println(fmt.Errorf("failed to get virtual user info %s ", username))
 		return
 	}
 
-	mtxInfo, ok := b.getVirtualUserInfo(userInfo.MtxID)
-	if !ok {
-		return
-	}
-
-	mc, errmx := b.newVirtualUserMtxClient(mtxInfo.Id)
+	mc, errmx := b.newVirtualUserMtxClient(mtxInfo.MatrixID)
 	if errmx != nil {
 		log.Println(fmt.Errorf("failed to create virtual user client %s ", username))
 	}
@@ -556,10 +491,9 @@ func (b *AppServMatrix) handleDirectMessages(username, userID, channelID string)
 		return
 	}
 	b.AddNewChannel(userID, resp.RoomID, channelID, true)
-	b.addNewMember(username, username, userID)
+	b.addNewMember(username, userID)
 
 	b.setRoomMap(resp.RoomID, userID)
-	b.saveState()
 }
 func (b *AppServMatrix) handleJoinUsers(channel string, users map[string]string) {
 	for k, v := range users {
@@ -573,61 +507,84 @@ func (b *AppServMatrix) handleJoinUsers(channel string, users map[string]string)
 				log.Println(err)
 				return
 			}
-			b.addVirtualUser(v, memberID)
+			b.addVirtualUser(memberID)
 			if memberInfo, ok = b.getVirtualUserInfo(v); !ok {
 				return
 			}
 		}
 		roomId := b.getRoomID(channel)
-		err := b.inviteUserToRoom(roomId, memberInfo.Id)
+		err := b.inviteUserToRoom(roomId, memberInfo.MatrixID)
 		if err != nil {
 			continue
 		}
-		b.addNewMember(channel, v, k)
+		b.addNewMember(channel, k)
 	}
-	b.saveState()
 
 }
-func (b *AppServMatrix) HandleLeaveUsers(channel string, users []string) {
+func (b *AppServMatrix) HandleLeaveUsers(channel string, usersID []string) {
+	// remove users from channel on conjunction table on database
+	channelInfo, err := b.DbStore.getChannel(channel)
+	if err != nil {
+		if err == ErrChannelNotFound {
+			b.Log.Error("channel not found", err)
+		} else {
+			b.Log.Error("failed to get channel", err)
+		}
+		return
+	}
 
-	b.removeUsersFromChannel(channel, users)
+	for _, userID := range usersID {
+		// get user info from database
+		userInfo, ok := b.getVirtualUserInfo(userID)
+		if !ok {
+			continue
+		}
 
-	b.saveState()
+		err = b.DbStore.removeUserFromChannel(channel, userID)
+		if err != nil {
+			b.Log.Error("failed to delete user from channel", err)
+		}
+
+		b.RemoveUserFromRoom("user parts", userInfo.MatrixID, channelInfo.MatrixRoomID)
+
+	}
 
 }
+
+// TODO : NEED TO BE UPDATED
 func (b *AppServMatrix) handleQuitUsers(reason string, members map[string]string) {
 	rooms := b.getAllRoomInfo()
 	for _, chanInfo := range rooms {
-		b.leaveUsersInChannel(chanInfo.RemoteChannelID, members)
+		b.leaveUsersInChannel(chanInfo.RemoteID, members)
 	}
 
 }
 
+// TODO : NEED TO BE UPDATED
 func (b *AppServMatrix) leaveUsersInChannel(channelName string, externMembers map[string]string) {
-	roomInfo, ok := b.getRoomInfo(channelName)
+	roomInfo, ok := b.getChannelInfo(channelName)
 	if !ok {
 		return
 	}
-	for k, _ := range roomInfo.Members {
-		exist := false
-		for ExternID, _ := range externMembers {
-			if k == ExternID {
-				exist = true
-				break
-			}
 
+	// remove users from channel on conjunction table on database
+	for _, userID := range externMembers {
+		// get user info from database
+		userInfo, ok := b.getVirtualUserInfo(userID)
+		if !ok {
+			continue
 		}
-		if !exist {
-			userInfo, ok := b.getUserMapInfo(k)
-			if !ok {
-				continue
-			}
-			delete(roomInfo.Members, userInfo.MtxID)
-			b.RemoveUserFromRoom("user parts", userInfo.MtxID, roomInfo.MtxRoomID)
+
+		err := b.DbStore.removeUserFromChannel(channelName, userID)
+		if err != nil {
+			b.Log.Error("failed to delete user from channel", err)
+			continue
 		}
+
+		b.RemoveUserFromRoom("user parts", userInfo.MatrixID, roomInfo.MatrixRoomID)
 	}
-
 }
+
 func (b *AppServMatrix) handleTelegramMsg(msg *config.Message) {
 	switch msg.ChannelType {
 	case "channel":
@@ -680,7 +637,6 @@ func (b *AppServMatrix) Send(msg config.Message) (string, error) {
 		b.remoteUsername = msg.Username
 		b.handleChannelInfoEvent(msg.ChannelName, msg.ChannelId, msg.UsersMemberId)
 		// TODO create virtual users and join channels
-		return "", nil
 	case "direct_msg":
 		b.handleDirectMessages(msg.Username, msg.UserID, msg.ChannelId)
 		msg.Channel = msg.UserID
@@ -1053,13 +1009,13 @@ func (b *AppServMatrix) handleEvent(ev *matrix.Event) {
 		//	Avatar:   b.getAvatarURL(ev.Sender),
 	}
 	rmsg.TargetPlatform = b.RemoteProtocol
-	if channelInfo, ok := b.getRoomInfo(channel); ok {
+	if channelInfo, ok := b.getChannelInfo(channel); ok {
 		b.RLock()
 		if channelInfo.IsDirect {
 			rmsg.Event = "direct_msg"
 		}
-		rmsg.ChannelId = channelInfo.RemoteChannelID
-		rmsg.ChannelName = channelInfo.ChannelName
+		rmsg.ChannelId = channelInfo.RemoteID
+		rmsg.ChannelName = channelInfo.RemoteName
 		b.adjustChannel(&rmsg)
 		b.RUnlock()
 	}

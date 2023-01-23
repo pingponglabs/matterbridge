@@ -36,7 +36,6 @@ func TestAppServMatrix_OutcomingMention(t *testing.T) {
 	}
 	b.Connect()
 
-	b.loadState()
 	userMention := "_irc_bridge_wcraftn"
 	text := fmt.Sprintf("hi %s:", userMention)
 	res, _ := b.outcomingMention("discord", text, text)

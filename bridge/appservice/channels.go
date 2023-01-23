@@ -16,7 +16,7 @@ import (
 
 func (b *AppServMatrix) initControlRoom() {
 	controlRoom := b.GetString("ApsPrefix") + "appservice_control"
-	if _, ok := b.getRoomInfo(controlRoom); ok {
+	if _, ok := b.getChannelInfo(controlRoom); ok {
 		return
 	}
 	b.uploadAvatar()
@@ -35,16 +35,14 @@ func (b *AppServMatrix) initControlRoom() {
 	roomId := resp.RoomID.String()
 
 	b.sendRoomAvatarEvent(roomId)
-	b.setRoomInfo(controlRoom, &ChannelInfo{
-		ChannelName:     controlRoom,
-		MtxRoomID:       roomId,
-		Members:         nil,
-		IsDirect:        true,
-		RemoteChannelID: controlRoom,
+	b.setRoomInfo(controlRoom,nil, &ChannelInfo{
+		RemoteName:   controlRoom,
+		MatrixRoomID: roomId,
+		IsDirect:     true,
+		RemoteID:     controlRoom,
 	})
 
-	b.setRoomMap(roomId, controlRoom)
-	b.saveState()
+//	b.setRoomMap(roomId, controlRoom)
 
 }
 func (b *AppServMatrix) sendRoomAvatarEvent(roomId string) error {
@@ -91,56 +89,23 @@ func (b *AppServMatrix) uploadAvatar() {
 }
 
 func (b *AppServMatrix) isChannelExist(channelName string) bool {
-	_, ok := b.getRoomInfo(channelName)
-
+	_, ok := b.getChannelInfo(channelName)
 	return ok
 
 }
-func (b *AppServMatrix) newUsersInChannel(channelName string, ExternMembers []string) []string {
-	newMembers := []string{}
-	roomInfo, ok := b.getRoomInfo(channelName)
-	if !ok {
-		return ExternMembers
-	}
-	b.RLock()
-	for _, ExternMember := range ExternMembers {
-		exist := false
-		for _, member := range roomInfo.Members {
-			if ExternMember == member.Name {
-				exist = true
-				break
-			}
 
-		}
-		if !exist {
-			newMembers = append(newMembers, ExternMember)
-		}
-	}
-	b.RUnlock()
-	return newMembers
+func (b *AppServMatrix) AddNewChannel(channel, roomId, remoteId string, isDirect bool) error {
 
-}
-
-func (b *AppServMatrix) joinRoom(roomId, userID, Token string) error {
-	cli, err := gomatrix.NewClient(b.GetString("Server"), id.UserID(userID), Token)
-	if err != nil {
-		return err
+	if _, ok := b.getChannelInfo(channel); ok {
+		return fmt.Errorf("channel already exist")
 	}
-	_, err = cli.JoinRoom(roomId, "", nil)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-func (b *AppServMatrix) AddNewChannel(channel, roomId, remoteId string, isDirect bool) {
-
-	b.setRoomInfo(channel, &ChannelInfo{
-		ChannelName:     channel,
-		MtxRoomID:       roomId,
-		Members:         map[string]ChannelMember{},
-		IsDirect:        isDirect,
-		RemoteChannelID: remoteId,
+	return b.DbStore.createChannel(&ChannelInfo{
+		RemoteName:   channel,
+		MatrixRoomID: roomId,
+		IsDirect:     isDirect,
+		RemoteID:     remoteId,
 	})
+
 }
 
 var whitespace = "\t\n\x0b\x0c\r "
@@ -222,50 +187,11 @@ func (b *AppServMatrix) RemoveUserFromRoom(reason string, mtxID, alias string) {
 
 	_, err := b.apsCli.KickUser(id.RoomID(alias), &gomatrix.ReqKickUser{
 		Reason: reason,
-		UserID: id.UserID(userId.Id),
+		UserID: id.UserID(userId.MatrixID),
 	})
 	if err != nil {
 		log.Println(err)
 	}
-}
-func (b *AppServMatrix) removeUsersFromChannel(channel string, members []string) {
-	chanInfo, ok := b.getRoomInfo(channel)
-	if !ok {
-		return
-	}
-	for _, member := range members {
-
-		if _, ok := chanInfo.Members[member]; ok {
-			b.Lock()
-			delete(chanInfo.Members, member)
-			b.Unlock()
-		}
-
-		userId, ok := b.getVirtualUserInfo(member)
-		if !ok {
-			log.Println(fmt.Errorf("user %s not exist on appservice database", member))
-			continue
-		}
-
-		_, err := b.apsCli.KickUser(id.RoomID(b.getRoomID(channel)), &gomatrix.ReqKickUser{
-			Reason: "user parts",
-			UserID: id.UserID(userId.Id),
-		})
-		if err != nil {
-			log.Println(err)
-		}
-	}
-}
-
-func (b *AppServMatrix) getWhatsappName(channelJid string) string {
-	b.RLock()
-	defer b.RUnlock()
-	for i, v := range b.channelsInfo {
-		if v.RemoteChannelID == channelJid {
-			return i
-		}
-	}
-	return ""
 }
 
 func (b *AppServMatrix) adjustChannel(rmsg *config.Message) {
