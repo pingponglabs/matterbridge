@@ -1,10 +1,8 @@
 package bfacebookbusiness
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
-	"io"
 	"log"
 	"net/http"
 	"strings"
@@ -14,7 +12,6 @@ import (
 	"github.com/42wim/matterbridge/bridge"
 	"github.com/42wim/matterbridge/bridge/config"
 	"github.com/42wim/matterbridge/bridge/helper"
-	"github.com/Davincible/goinsta"
 )
 
 type BfacebookBusiness struct {
@@ -200,11 +197,6 @@ func (b *BfacebookBusiness) Disconnect() error {
 func (b *BfacebookBusiness) JoinChannel(channel config.ChannelInfo) error {
 
 	return nil
-
-}
-func (b *BfacebookBusiness) UploadMedia(image io.Reader) (*goinsta.UploadOptions, error) {
-
-	return nil, nil
 
 }
 
@@ -425,32 +417,6 @@ func (b *BfacebookBusiness) handleReply(rmsg config.Message) bool {
 func (b *BfacebookBusiness) handleMemberChange() {
 	// Update the displayname on join messages, according to https://matrix.org/docs/spec/client_server/r0.6.1#events-on-change-of-profile-information
 
-}
-
-// handleDownloadFile handles file download
-func (b *BfacebookBusiness) handleUpload(c *goinsta.Conversation, msg *config.Message) error {
-
-	if msg.Extra == nil {
-		return fmt.Errorf("nil extra map")
-	}
-	for _, rmsg := range helper.HandleExtra(msg, b.General) {
-		b.Log.Println(rmsg.Text)
-
-	}
-	for _, f := range msg.Extra["file"] {
-		if fi, ok := f.(config.FileInfo); ok {
-			content := bytes.NewReader(*fi.Data)
-			u, err := b.UploadMedia(content)
-			if err != nil {
-				b.Log.Println(err)
-			}
-			err = c.ConfigureDMImagePost(u.GetuploadId(), u.GetuploadName())
-			if err != nil {
-				b.Log.Println(err)
-			}
-		}
-	}
-	return nil
 }
 
 // handleUploadFiles handles native upload of files.

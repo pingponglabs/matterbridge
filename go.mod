@@ -60,12 +60,12 @@ require (
 	go.mau.fi/whatsmeow v0.0.0-20220624184947-57a69a641154
 	golang.org/x/image v0.0.0-20220617043117-41969df76e82
 	golang.org/x/oauth2 v0.0.0-20220622183110-fd043fe589d2
-	golang.org/x/text v0.3.7
+	golang.org/x/text v0.6.0
 	gomod.garykim.dev/nc-talk v0.3.0
 	google.golang.org/protobuf v1.28.0
 	gopkg.in/olahol/melody.v1 v1.0.0-20170518105555-d52139073376
 	layeh.com/gumble v0.0.0-20200818122324-146f9205029b
-	maunium.net/go/mautrix v0.11.0
+	maunium.net/go/mautrix v0.13.0
 	modernc.org/sqlite v1.17.3
 )
 
@@ -145,6 +145,10 @@ require (
 	github.com/spf13/jwalterweatherman v1.1.0 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/subosito/gotenv v1.3.0 // indirect
+	github.com/tidwall/gjson v1.14.4 // indirect
+	github.com/tidwall/match v1.1.1 // indirect
+	github.com/tidwall/pretty v1.2.1 // indirect
+	github.com/tidwall/sjson v1.2.5 // indirect
 	github.com/tinylib/msgp v1.1.6 // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	github.com/valyala/fasttemplate v1.2.1 // indirect
@@ -157,14 +161,13 @@ require (
 	go.uber.org/atomic v1.9.0 // indirect
 	go.uber.org/multierr v1.7.0 // indirect
 	go.uber.org/zap v1.17.0 // indirect
-	golang.org/x/crypto v0.0.0-20220513210258-46612604a0f9 // indirect
-	golang.org/x/mod v0.6.0-dev.0.20220106191415-9b9b3d81d5e3 // indirect
-	golang.org/x/net v0.0.0-20220909164309-bea034e7d591 // indirect
-	golang.org/x/sys v0.3.0 // indirect
-	golang.org/x/term v0.0.0-20210927222741-03fcf44c2211 // indirect
+	golang.org/x/crypto v0.5.0 // indirect
+	golang.org/x/mod v0.6.0-dev.0.20220419223038-86c51ed26bb4 // indirect
+	golang.org/x/net v0.5.0 // indirect
+	golang.org/x/sys v0.4.0 // indirect
+	golang.org/x/term v0.4.0 // indirect
 	golang.org/x/time v0.0.0-20201208040808-7e3f01d25324 // indirect
-	golang.org/x/tools v0.1.10 // indirect
-	golang.org/x/xerrors v0.0.0-20220517211312-f3a8303e98df // indirect
+	golang.org/x/tools v0.1.12 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
 	gopkg.in/ini.v1 v1.66.4 // indirect
 	gopkg.in/natefinch/lumberjack.v2 v2.0.0 // indirect
@@ -184,6 +187,6 @@ require (
 
 replace github.com/Davincible/goinsta => github.com/ibrahimk9000/goinsta v0.0.0-20221206145429-80984229aea5
 
-replace github.com/DusanKasan/parsemail => github.com/ibrahimk9000/parsemail v0.0.0-20230120200850-fee7d78e9082
+replace github.com/DusanKasan/parsemail => github.com/ibrahimk9000/parsemail v0.0.0-20230125175629-c8a9430a891b
 
 go 1.17
