@@ -13,10 +13,11 @@ import (
 	"github.com/jordan-wright/email"
 )
 
-func (b *Bemail) Send(msg config.Message) (string, error) {
+
+func (b *Bemail) SendSmtp(msg config.Message) (string, error) {
 	b.Log.Debugf("=> Receiving %#v", msg)
-	emailUser := b.GetString("Username")
-	emailPass := b.GetString("Password")
+	emailUser := b.GetString("SMTPUsername")
+	emailPass := b.GetString("SMTPPassword")
 	smtpAddrr := b.GetString("SMTP")
 	smtpHost := smtpAddrr
 
@@ -25,7 +26,7 @@ func (b *Bemail) Send(msg config.Message) (string, error) {
 	}
 
 	e := email.NewEmail()
-	username := b.GetString("username")
+	username := b.GetString("SMTPUsername")
 	if !strings.Contains(username, "@") {
 		username = fmt.Sprintf("%s@%s", username, smtpHost)
 	}

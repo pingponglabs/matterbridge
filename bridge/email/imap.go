@@ -26,13 +26,28 @@ type Bemail struct {
 	ProcessedEmailMsgID []string
 	LastFetchTimeStamp  time.Time
 	*client.Client
-	Inboxes []*imap.MailboxInfo
+	Inboxes            []*imap.MailboxInfo
+	AccountImapAddress string
+	AccountSmtpAddress string
 
 	connectRetryLock sync.Mutex
 }
 
+func getEmailAddress(address, username string) string {
+	if strings.Contains(username, "@") {
+		return username
+	}
+	if address == "" {
+		return username
+	}
+	address = strings.Split(address, ":")[0]
+	return username + "@" + address
+}
+
 func New(cfg *bridge.Config) bridge.Bridger {
 	b := &Bemail{Config: cfg}
+	b.AccountImapAddress = getEmailAddress(b.GetString("IMAP"), b.GetString("IMAPUsername"))
+	b.AccountSmtpAddress = getEmailAddress(b.GetString("SMTP"), b.GetString("SMTPUsername"))
 	return b
 }
 
@@ -198,8 +213,11 @@ func (b *Bemail) IsProcessed(msgID string) bool {
 	}
 	return false
 }
-
 func (b *Bemail) Connect() error {
+	return nil
+}
+
+func (b *Bemail) ConnectT() error {
 	b.Log.Println("Connecting to the IMAP server...")
 
 	// Connect to  imap server
