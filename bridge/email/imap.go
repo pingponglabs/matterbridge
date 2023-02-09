@@ -26,13 +26,28 @@ type Bemail struct {
 	ProcessedEmailMsgID []string
 	LastFetchTimeStamp  time.Time
 	*client.Client
-	Inboxes []*imap.MailboxInfo
+	Inboxes            []*imap.MailboxInfo
+	AccountImapAddress string
+	AccountSmtpAddress string
 
 	connectRetryLock sync.Mutex
 }
 
+func getEmailAddress(address, username string) string {
+	if strings.Contains(username, "@") {
+		return username
+	}
+	if address == "" {
+		return username
+	}
+	address = strings.Split(address, ":")[0]
+	return username + "@" + address
+}
+
 func New(cfg *bridge.Config) bridge.Bridger {
 	b := &Bemail{Config: cfg}
+	b.AccountImapAddress = getEmailAddress(b.GetString("IMAP"), b.GetString("IMAPUsername"))
+	b.AccountSmtpAddress = getEmailAddress(b.GetString("SMTP"), b.GetString("SMTPUsername"))
 	return b
 }
 
@@ -199,7 +214,15 @@ func (b *Bemail) IsProcessed(msgID string) bool {
 	return false
 }
 
+// IMAPFetchMode is the mode to fetch email from IMAP server ,set to false if the webhooks is used instead
 func (b *Bemail) Connect() error {
+	if b.GetBool("IMAPFetchMode") {
+		return b.ConnectImapFetch()
+	}
+	return nil
+}
+
+func (b *Bemail) ConnectImapFetch() error {
 	b.Log.Println("Connecting to the IMAP server...")
 
 	// Connect to  imap server
