@@ -77,9 +77,9 @@ func (b *AppServStore) createChannelTable(name string) error {
 	_, err := b.db.Exec(`CREATE TABLE IF NOT EXISTS channel (
 		id INTEGER NOT NULL  PRIMARY KEY AUTOINCREMENT,
 		remote_name varchar(255) NOT NULL,
-		matrix_room_id varchar(255) NOT NULL,
+		matrix_room_id varchar(255) UNIQUE NOT NULL,
 		is_direct BOOLEAN NOT NULL,
-		remote_id varchar(255) NOT NULL,
+		remote_id varchar(255) UNIQUE NOT NULL,
 		UNIQUE (id)
 	);`)
 	return err
@@ -91,8 +91,8 @@ func (b *AppServStore) createVirtualUsersTable(name string) error {
 		id INTEGER NOT NULL  PRIMARY KEY AUTOINCREMENT,
 		username varchar(255) NOT NULL,
 		matrix_token varchar(255) NOT NULL,
-		matrix_id varchar(255) NOT NULL,
-		remote_id varchar(255) NOT NULL,
+		matrix_id varchar(255) UNIQUE NOT NULL,
+		remote_id varchar(255) UNIQUE NOT NULL,
 		registred BOOLEAN NOT NULL,
 		UNIQUE (id)
 

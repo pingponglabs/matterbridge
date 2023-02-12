@@ -55,13 +55,20 @@ func AlterUsername(s string) string {
 }
 
 func (b *AppServMatrix) GetNotExistUsers(members map[string]string) map[string]string {
-	list := map[string]string{}
+	var newMembers = make(map[string]string)
 	for k, v := range members {
-		if _, ok := b.getUserMapInfo(k); !ok {
-			list[k] = v
+		exist, err := b.DbStore.getUserByID(k)
+		if err != nil {
+			b.Log.Errorf("Error getting user info from database: %v", err)
+
 		}
+		if exist == nil {
+			newMembers[k] = v
+		}
+
 	}
-	return list
+	return newMembers
+
 }
 
 func (b *AppServMatrix) addNewMembers(channel string, newMembers map[string]string) {
@@ -147,14 +154,17 @@ func (b *AppServMatrix) newVirtualUserMtxClient(mtxID string) (*matrix.Client, e
 }
 
 func (b *AppServMatrix) getUserMapInfo(userID string) (UserMapInfo, bool) {
-	b.RLock()
-	defer b.RUnlock()
-
-	if v, ok := b.UsersMap[userID]; ok {
-		return v, true
-
+	userInfo, err := b.DbStore.getUserByID(userID)
+	if err != nil {
+		if !errors.Is(err, ErrUserNotFound) {
+			b.Log.Errorf("Error getting user info from database: %v", err)
+		}
+		return UserMapInfo{}, false
 	}
-	return UserMapInfo{}, false
+	return UserMapInfo{
+		Username: userInfo.Username,
+		MtxID:    userInfo.MatrixID,
+	}, true
 }
 func (b *AppServMatrix) addUserMapInfo(UserID string, userInfo UserMapInfo) {
 	b.Lock()

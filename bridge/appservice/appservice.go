@@ -19,6 +19,7 @@ import (
 	// import sqlite3 driver
 	_ "github.com/mattn/go-sqlite3"
 
+	"maunium.net/go/mautrix"
 	gomatrix "maunium.net/go/mautrix"
 	id "maunium.net/go/mautrix/id"
 
@@ -325,7 +326,7 @@ func (b *AppServMatrix) UpdateVirtualUserJoinedStatus(mtxID, roomId string, join
 	if !ok {
 		return
 	}
-	err := b.DbStore.updateUserJoinedStatus(userInfo.MatrixID, channelInfo.RemoteID, joined)
+	err := b.DbStore.updateUserJoinedStatus(userInfo.MatrixID, channelInfo.MatrixRoomID, joined)
 
 	if err != nil {
 		b.Log.Error(err)
@@ -418,8 +419,13 @@ func (b *AppServMatrix) InviteUsersLoop(channelID string) {
 				continue
 			}
 			err := b.inviteToRoom(roomInfo.MatrixRoomID, []string{memberInfo.MatrixID})
-			if err != nil {
-				continue
+			if respErr, ok := err.(mautrix.HTTPError); ok {
+				if respErr.RespError.ErrCode == "M_FORBIDDEN" && respErr.RespError.Err == "User is already joined to room" {
+					b.UpdateVirtualUserJoinedStatus(memberInfo.MatrixID, roomInfo.MatrixRoomID, true)
+				} else {
+					b.Log.Error(err)
+				}
+
 			}
 		}
 	}
@@ -615,8 +621,8 @@ func (b *AppServMatrix) Send(msg config.Message) (string, error) {
 	b.RemoteProtocol = msg.Protocol
 	switch msg.Protocol {
 	case "api":
-		go b.controllAction(msg)
-		return "", nil
+	//	go b.controllAction(msg)
+	//	return "", nil
 	case "irc":
 
 	case "discord":

@@ -29,9 +29,9 @@ func newMatrixUsername(username string) *matrixUsername {
 
 // getRoomID retrieves a matching room ID from the channel name.
 func (b *AppServMatrix) getRoomID(channelID string) string {
-	// get the room ID from the channel Id 
-	channelInfo,err:=b.DbStore.getChannelByID(channelID)
-	if err!=nil{
+	// get the room ID from the channel Id
+	channelInfo, err := b.DbStore.getChannelByID(channelID)
+	if err != nil {
 		return ""
 	}
 	return channelInfo.MatrixRoomID
@@ -43,10 +43,11 @@ func (b *AppServMatrix) setRoomMap(roomId, channel string) {
 
 }
 func (b *AppServMatrix) getRoomMapChannel(roomId string) (string, bool) {
-	b.RLock()
-	channel, ok := b.RoomMap[roomId]
-	b.RUnlock()
-	return channel, ok
+	ChannelInfo, err := b.DbStore.getChannelByMatrixID(roomId)
+	if err != nil {
+		return "", false
+	}
+	return ChannelInfo.RemoteID, true
 
 }
 func (b *AppServMatrix) GetAllMapChannels() []string {
