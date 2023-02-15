@@ -57,13 +57,12 @@ func AlterUsername(s string) string {
 func (b *AppServMatrix) GetNotExistUsers(members map[string]string) map[string]string {
 	var newMembers = make(map[string]string)
 	for k, v := range members {
-		exist, err := b.DbStore.getUserByID(k)
-		if err != nil {
-			b.Log.Errorf("Error getting user info from database: %v", err)
-
-		}
-		if exist == nil {
+		_, err := b.DbStore.getUserByID(k)
+		if errors.Is(err, ErrUserNotFound) {
 			newMembers[k] = v
+		} else {
+			b.Log.Errorf("Error getting user info from database: %v", err)
+			return nil
 		}
 
 	}

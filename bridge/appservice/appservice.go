@@ -275,10 +275,10 @@ func (b *AppServMatrix) handleDirectInvites(mtxUserId, roomId, Sender string) er
 	channelName := userInfo.UserID
 
 	b.setRoomInfobyMtxID(channelName, []string{mtxUserId}, &ChannelInfo{
-		RemoteName:   channelName,
+		RemoteName:   userInfo.Username,
 		MatrixRoomID: roomId,
 		IsDirect:     true,
-		RemoteID:     roomId,
+		RemoteID:     userInfo.UserID,
 	})
 	b.setRoomMap(roomId, channelName)
 	// b.saveState()
@@ -390,7 +390,7 @@ func (b *AppServMatrix) handleChannelInfoEvent(channelName, channelID string, me
 		}
 		b.sendRoomAvatarEvent(roomId)
 
-		b.AddNewChannel(channelID, roomId, channelID, false)
+		b.AddNewChannel(channelName, roomId, channelID, false)
 
 		b.setRoomMap(roomId, channelID)
 	}
@@ -451,21 +451,21 @@ func (b *AppServMatrix) registerUsersList(users map[string]string) {
 	}
 }
 
-func (b *AppServMatrix) handleDirectMessages(username, userID, channelID string) {
-	if b.isChannelExist(userID) {
+func (b *AppServMatrix) handleDirectMessages(channelName, channelID string) {
+	if b.isChannelExist(channelID) {
 		return
 	}
-	if username == b.remoteUsername {
+	if channelName == b.remoteUsername {
 		return
 	}
-	username = strings.TrimPrefix(username, "@")
-	if b.isChannelExist(username) {
+	channelName = strings.TrimPrefix(channelName, "@")
+	if b.isChannelExist(channelName) {
 		return
 	}
 
-	_, ok := b.getVirtualUserInfo(userID)
+	_, ok := b.getVirtualUserInfo(channelID)
 	if !ok {
-		memberID, err := b.createVirtualUsers(username, userID)
+		memberID, err := b.createVirtualUsers(channelName, channelID)
 		if err != nil {
 			log.Println(err)
 			return
@@ -473,20 +473,20 @@ func (b *AppServMatrix) handleDirectMessages(username, userID, channelID string)
 		b.addVirtualUser(memberID)
 
 	}
-	mtxInfo, ok := b.getVirtualUserInfo(userID)
+	mtxInfo, ok := b.getVirtualUserInfo(channelID)
 	if !ok {
-		log.Println(fmt.Errorf("failed to get virtual user info %s ", username))
+		log.Println(fmt.Errorf("failed to get virtual user info %s ", channelName))
 		return
 	}
 
 	mc, errmx := b.newVirtualUserMtxClient(mtxInfo.MatrixID)
 	if errmx != nil {
-		log.Println(fmt.Errorf("failed to create virtual user client %s ", username))
+		log.Println(fmt.Errorf("failed to create virtual user client %s ", channelName))
 	}
 	resp, err := mc.CreateRoom(&matrix.ReqCreateRoom{
 
-		Name:   username,
-		Topic:  username + " direct message room",
+		Name:   channelName,
+		Topic:  channelName + " direct message room",
 		Invite: []string{b.GetString("MainUser")},
 
 		IsDirect: true,
@@ -496,10 +496,10 @@ func (b *AppServMatrix) handleDirectMessages(username, userID, channelID string)
 		log.Println(fmt.Errorf("failed to  create direct room : %w", err))
 		return
 	}
-	b.AddNewChannel(userID, resp.RoomID, channelID, true)
-	b.addNewMember(username, userID)
+	b.AddNewChannel(channelName, resp.RoomID, channelID, true)
+	b.addNewMember(channelName, channelID)
 
-	b.setRoomMap(resp.RoomID, userID)
+	b.setRoomMap(resp.RoomID, channelID)
 }
 func (b *AppServMatrix) handleJoinUsers(channel string, users map[string]string) {
 	for k, v := range users {
@@ -529,7 +529,7 @@ func (b *AppServMatrix) handleJoinUsers(channel string, users map[string]string)
 }
 func (b *AppServMatrix) HandleLeaveUsers(channel string, usersID []string) {
 	// remove users from channel on conjunction table on database
-	channelInfo, err := b.DbStore.getChannel(channel)
+	channelInfo, err := b.DbStore.getChannelByName(channel)
 	if err != nil {
 		if err == ErrChannelNotFound {
 			b.Log.Error("channel not found", err)
@@ -618,11 +618,11 @@ func (b *AppServMatrix) HandleActionCommand(msg config.Message) {
 func (b *AppServMatrix) Send(msg config.Message) (string, error) {
 
 	b.Log.Debugf("=> Receiving %#v", msg)
-	b.RemoteProtocol = msg.Protocol
 	switch msg.Protocol {
 	case "api":
-	//	go b.controllAction(msg)
-	//	return "", nil
+		go b.controllAction(msg)
+		return "", nil
+	
 	case "irc":
 
 	case "discord":
@@ -634,6 +634,8 @@ func (b *AppServMatrix) Send(msg config.Message) (string, error) {
 		msg.Username = strings.TrimPrefix(msg.Username, "+")
 
 	}
+	b.RemoteProtocol = msg.Protocol
+
 
 	// Make a action /me of the message
 
@@ -644,8 +646,8 @@ func (b *AppServMatrix) Send(msg config.Message) (string, error) {
 		b.handleChannelInfoEvent(msg.ChannelName, msg.ChannelId, msg.UsersMemberId)
 		// TODO create virtual users and join channels
 	case "direct_msg":
-		b.handleDirectMessages(msg.Username, msg.UserID, msg.ChannelId)
-		msg.Channel = msg.UserID
+		b.handleDirectMessages(msg.Username, msg.ChannelId)
+		msg.Channel = msg.ChannelId
 		// TODO create virtual users and join channels
 
 	case config.EventJoinLeave:

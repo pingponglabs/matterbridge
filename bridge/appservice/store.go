@@ -64,7 +64,7 @@ type appserviceTable struct {
 	AvatarUrl      string `json:"avatar_url,omitempty"`
 }
 
-func (b *AppServStore) crateAppserviceTable(name string) error {
+func (b *AppServStore) createAppserviceTable(name string) error {
 
 	_, err := b.db.Exec(`create table if not exists info (
 		id INTEGER not null autoincrement primary key,
@@ -126,15 +126,14 @@ func (b *AppServStore) createChannel(channel *ChannelInfo) error {
 
 var ErrChannelNotFound = errors.New("channel not found")
 
-// getChannel returns a channel by its name
-func (b *AppServStore) getChannel(name string) (*ChannelInfo, error) {
+// getChannelByName returns a channel by its name
+func (b *AppServStore) getChannelByName(name string) (*ChannelInfo, error) {
 	var channel ChannelInfo
 	err := b.db.QueryRow(`select remote_name, matrix_room_id, is_direct, remote_id from `+ChannelTableName+` where remote_name = $1`, name).Scan(&channel.RemoteName, &channel.MatrixRoomID, &channel.IsDirect, &channel.RemoteID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, ErrChannelNotFound
+			err = ErrChannelNotFound
 		}
-		return nil, err
 	}
 	return &channel, err
 }
@@ -143,6 +142,11 @@ func (b *AppServStore) getChannel(name string) (*ChannelInfo, error) {
 func (b *AppServStore) getChannelByID(id string) (*ChannelInfo, error) {
 	var channel ChannelInfo
 	err := b.db.QueryRow(`select remote_name, matrix_room_id, is_direct, remote_id from `+ChannelTableName+` where remote_id = $1`, id).Scan(&channel.RemoteName, &channel.MatrixRoomID, &channel.IsDirect, &channel.RemoteID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			err = ErrChannelNotFound
+		}
+	}
 	return &channel, err
 }
 
@@ -152,9 +156,8 @@ func (b *AppServStore) getChannelByMatrixID(id string) (*ChannelInfo, error) {
 	err := b.db.QueryRow(`select remote_name, matrix_room_id, is_direct, remote_id from `+ChannelTableName+` where matrix_room_id = $1`, id).Scan(&channel.RemoteName, &channel.MatrixRoomID, &channel.IsDirect, &channel.RemoteID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, ErrChannelNotFound
+			err = ErrChannelNotFound
 		}
-		return nil, err
 	}
 	return &channel, err
 }
@@ -165,10 +168,15 @@ func (b *AppServStore) updateChannel(channel *ChannelInfo) error {
 	return err
 }
 
+var ErrUserNotFound = errors.New("user not found")
+
 // get user by its name
 func (b *AppServStore) getUserbyName(name string) (*MemberInfo, error) {
 	var user MemberInfo
 	err := b.db.QueryRow(`select username, matrix_token, matrix_id, remote_id, registred from `+UserTableName+` where username = $1`, name).Scan(&user.Username, &user.MatrixToken, &user.MatrixID, &user.UserID, &user.Registred)
+	if errors.Is(err, sql.ErrNoRows) {
+		err = ErrUserNotFound
+	}
 	return &user, err
 }
 
@@ -176,10 +184,11 @@ func (b *AppServStore) getUserbyName(name string) (*MemberInfo, error) {
 func (b *AppServStore) getUserByID(id string) (*MemberInfo, error) {
 	var user MemberInfo
 	err := b.db.QueryRow(`select username, matrix_token, matrix_id, remote_id, registred from `+UserTableName+` where remote_id = $1`, id).Scan(&user.Username, &user.MatrixToken, &user.MatrixID, &user.UserID, &user.Registred)
+	if errors.Is(err, sql.ErrNoRows) {
+		err = ErrUserNotFound
+	}
 	return &user, err
 }
-
-var ErrUserNotFound = errors.New("user not found")
 
 // get user by its matrix id
 
@@ -187,7 +196,7 @@ func (b *AppServStore) getUserByMatrixID(id string) (*MemberInfo, error) {
 	var user MemberInfo
 	err := b.db.QueryRow(`select username, matrix_token, matrix_id, remote_id, registred from `+UserTableName+` where matrix_id = $1`, id).Scan(&user.Username, &user.MatrixToken, &user.MatrixID, &user.UserID, &user.Registred)
 	if errors.Is(err, sql.ErrNoRows) {
-		return nil, ErrUserNotFound
+		err = ErrUserNotFound
 	}
 	return &user, err
 }
@@ -226,7 +235,7 @@ func (b *AppServStore) getChannelsForUser(userID string) ([]*ChannelInfo, error)
 	return channels, nil
 }
 
-// checl if a user is in a channel
+// check if a user is in a channel
 func (b *AppServStore) isUserInChannel(channelID, userID string) (bool, error) {
 	var count int
 	err := b.db.QueryRow(`select count(*) from channel_user where channel_id = $1 and user_id = $2`, channelID, userID).Scan(&count)

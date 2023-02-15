@@ -2,11 +2,14 @@ package bdiscord
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/42wim/matterbridge/bridge/config"
 	"github.com/bwmarrin/discordgo"
 )
+
+var UserIDChannelIDMap = map[string]string{}
 
 func (b *Bdiscord) SendChannelsAndMembers() {
 	time.Sleep(10 * time.Second)
@@ -34,19 +37,25 @@ func (b *Bdiscord) SendChannelsAndMembers() {
 }
 func (b *Bdiscord) HandleDirectMessage(msg config.Message) (string, error) {
 	b.Log.Debugf("=> Receiving %#v", msg)
-
-	if !b.IsDMChannelIDExist(msg.Channel) {
+	msg.Channel = strings.TrimPrefix(msg.Channel, "ID:")
+	channelID := b.GetChannelIDFromUserID(msg.Channel)
+	if !b.IsDMChannelIDExist(channelID) {
 		dmChannel, err := b.c.UserChannelCreate(msg.Channel)
 		if err != nil {
 			b.Log.Errorf("failed creating direct message channel for user %s", msg.Channel)
 			return "", nil
 		}
 		b.channels = append(b.channels, dmChannel)
+		b.Lock()
+		UserIDChannelIDMap[msg.Channel] = dmChannel.ID
+		b.Unlock()
+
 	}
-	if !b.IsDMChannelIDExist(msg.Channel) {
-		return "", fmt.Errorf("Could not find channelID for %v", msg.Channel)
+	channelID = b.GetChannelIDFromUserID(msg.Channel)
+
+	if !b.IsDMChannelIDExist(channelID) {
+		return "", fmt.Errorf("Could not find channelID for %v", channelID)
 	}
-	channelID := msg.Channel
 
 	if msg.Event == config.EventUserTyping {
 		if b.GetBool("ShowUserTyping") {
@@ -74,18 +83,7 @@ func (b *Bdiscord) HandleDirectMessage(msg config.Message) (string, error) {
 
 	return b.handleEventBotUser(&msg, channelID)
 }
-func (b *Bdiscord) getDMChannelID(name string) string {
 
-	b.channelsMutex.RLock()
-	defer b.channelsMutex.RUnlock()
-
-	for _, channel := range b.channels {
-		if channel.Name == name && channel.Type == discordgo.ChannelTypeDM {
-			return channel.ID
-		}
-	}
-	return ""
-}
 func (b *Bdiscord) IsDMChannelIDExist(ID string) bool {
 
 	b.channelsMutex.RLock()
@@ -97,4 +95,14 @@ func (b *Bdiscord) IsDMChannelIDExist(ID string) bool {
 		}
 	}
 	return false
+}
+func (b *Bdiscord) GetChannelIDFromUserID(ID string) string {
+
+	b.channelsMutex.RLock()
+	defer b.channelsMutex.RUnlock()
+
+	if channel, ok := UserIDChannelIDMap[ID]; ok {
+		return channel
+	}
+	return ""
 }
