@@ -36,44 +36,7 @@ type Account struct {
 
 	Participents map[string]SenderInfo
 }
-type group struct {
-	Id    string
-	Title string
-}
 
-// SubTextMessage represents the new content of the message in edit messages.
-type SubTextMessage struct {
-	MsgType       string `json:"msgtype"`
-	Body          string `json:"body"`
-	FormattedBody string `json:"formatted_body,omitempty"`
-	Format        string `json:"format,omitempty"`
-}
-
-// MessageRelation explains how the current message relates to a previous message.
-// Notably used for message edits.
-type MessageRelation struct {
-	EventID string `json:"event_id"`
-	Type    string `json:"rel_type"`
-}
-
-type EditedMessage struct {
-	NewContent SubTextMessage  `json:"m.new_content"`
-	RelatedTo  MessageRelation `json:"m.relates_to"`
-}
-
-type InReplyToRelationContent struct {
-	EventID string `json:"event_id"`
-}
-
-type InReplyToRelation struct {
-	InReplyTo InReplyToRelationContent `json:"m.in_reply_to"`
-}
-
-type ReplyMessage struct {
-	RelatedTo InReplyToRelation `json:"m.relates_to"`
-}
-
-// me/accounts?fields=instagram_business_account
 func New(cfg *bridge.Config) bridge.Bridger {
 
 	b := &BfacebookBusiness{Config: cfg}
@@ -138,7 +101,7 @@ func (b *BfacebookBusiness) ParseConversation(conversation MessagesResp) []Conve
 				v.Platform = "instagram"
 			}
 			convInfo.Participents[v.ID] = v
-			if b.MainBotAccountId(v.ID) {
+			if b.MainAccountId(v.ID) {
 				convInfo.PageSender = v
 				continue
 			}
@@ -186,9 +149,7 @@ func (b *BfacebookBusiness) InitUsers(convsInfo []ConversationInfo) {
 	}
 }
 
-func (b *BfacebookBusiness) HandleImport() {
 
-}
 
 func (b *BfacebookBusiness) Disconnect() error {
 	return nil
@@ -282,7 +243,7 @@ func (b *BfacebookBusiness) HandleFacebookEvent(Msg config.Message) {
 			return
 		}
 		for _, entry := range event.Entry {
-			if !b.MainBotAccountId(entry.ID) {
+			if !b.MainAccountId(entry.ID) {
 				continue
 			}
 			accountInfo, err := b.GetAccountInfo(entry.ID)
@@ -350,7 +311,7 @@ func (b *BfacebookBusiness) RegisterParticipentInfo(accountID, senderId, eventOb
 	default:
 		return SenderInfo{}, fmt.Errorf("unknown platform")
 	}
-	if b.MainBotAccountId(senderId) {
+	if b.MainAccountId(senderId) {
 		return SenderInfo{}, fmt.Errorf("sender is the main bot account")
 	}
 
@@ -363,7 +324,7 @@ func (b *BfacebookBusiness) RegisterParticipentInfo(accountID, senderId, eventOb
 	for _, conv := range converInfo {
 
 		for k, v := range conv.Participents {
-			if !b.MainBotAccountId(k) {
+			if !b.MainAccountId(k) {
 				b.Lock()
 				defer b.Unlock()
 
@@ -404,26 +365,6 @@ func (b *BfacebookBusiness) HandleMediaEvent(rmsg *config.Message, platform stri
 	}
 }
 
-func (b *BfacebookBusiness) handleEdit(rmsg config.Message) bool {
-
-	return true
-}
-
-func (b *BfacebookBusiness) handleReply(rmsg config.Message) bool {
-
-	return true
-}
-
-func (b *BfacebookBusiness) handleMemberChange() {
-	// Update the displayname on join messages, according to https://matrix.org/docs/spec/client_server/r0.6.1#events-on-change-of-profile-information
-
-}
-
-// handleUploadFiles handles native upload of files.
-func (b *BfacebookBusiness) handleUploadImage(msg *config.Message) (string, error) {
-
-	return "", nil
-}
 
 func (b *BfacebookBusiness) IsMessageDuplicate(mid string) bool {
 	b.Lock()
@@ -436,7 +377,7 @@ func (b *BfacebookBusiness) IsMessageDuplicate(mid string) bool {
 	}
 	return false
 }
-func (b *BfacebookBusiness) MainBotAccountId(id string) bool {
+func (b *BfacebookBusiness) MainAccountId(id string) bool {
 	for _, v := range b.Accounts {
 		if v.pageID == id || v.intagramBusinessAccount == id {
 			return true

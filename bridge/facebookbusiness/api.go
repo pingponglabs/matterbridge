@@ -339,6 +339,7 @@ func (b *BfacebookBusiness) SendInstagramMediaMessage(accountInfo Account,name, 
 	log.Println(res)
 	return "", fmt.Errorf("empty facebook send messageId")
 }
+
 func parseCreatedTime(stime string) time.Time {
 	layout := "2006-01-02T15:04:05+0000"
 	t, err := time.Parse(layout, stime)
