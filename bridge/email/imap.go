@@ -213,11 +213,16 @@ func (b *Bemail) IsProcessed(msgID string) bool {
 	}
 	return false
 }
+
+// IMAPFetchMode is the mode to fetch email from IMAP server ,set to false if the webhooks is used instead
 func (b *Bemail) Connect() error {
+	if b.GetBool("IMAPFetchMode") {
+		return b.ConnectImapFetch()
+	}
 	return nil
 }
 
-func (b *Bemail) ConnectT() error {
+func (b *Bemail) ConnectImapFetch() error {
 	b.Log.Println("Connecting to the IMAP server...")
 
 	// Connect to  imap server

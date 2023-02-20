@@ -47,42 +47,6 @@ type twitterUser struct {
 	ProfileImageURLHTTPS string `json:"profile_image_url_https"`
 }
 
-type group struct {
-	Id    string
-	Title string
-}
-
-// SubTextMessage represents the new content of the message in edit messages.
-type SubTextMessage struct {
-	MsgType       string `json:"msgtype"`
-	Body          string `json:"body"`
-	FormattedBody string `json:"formatted_body,omitempty"`
-	Format        string `json:"format,omitempty"`
-}
-
-// MessageRelation explains how the current message relates to a previous message.
-// Notably used for message edits.
-type MessageRelation struct {
-	EventID string `json:"event_id"`
-	Type    string `json:"rel_type"`
-}
-
-type EditedMessage struct {
-	NewContent SubTextMessage  `json:"m.new_content"`
-	RelatedTo  MessageRelation `json:"m.relates_to"`
-}
-
-type InReplyToRelationContent struct {
-	EventID string `json:"event_id"`
-}
-
-type InReplyToRelation struct {
-	InReplyTo InReplyToRelationContent `json:"m.in_reply_to"`
-}
-
-type ReplyMessage struct {
-	RelatedTo InReplyToRelation `json:"m.relates_to"`
-}
 
 func New(cfg *bridge.Config) bridge.Bridger {
 
@@ -94,30 +58,6 @@ func New(cfg *bridge.Config) bridge.Bridger {
 	return b
 }
 
-func (b *Btwitter) SyncMsg() {
-	time.Sleep(10 * time.Second)
-
-	for {
-		time.Sleep(30 * time.Second)
-		dmEvent, err := b.GetDmEvent(2)
-		if err != nil {
-			b.Log.Println(err)
-			continue
-		}
-		for _, v := range dmEvent.Events {
-			timeStamp, _ := strconv.Atoi(v.CreatedAt)
-			if timeStamp > b.LastMsgTimeStamp {
-				b.LastMsgTimeStamp = timeStamp
-			} else {
-				break
-			}
-			if v.Message.SenderID != b.AccountInfo.ID {
-				b.syncMsg <- v
-				// send to external network
-			}
-		}
-	}
-}
 func (b *Btwitter) Connect() error {
 	err := godotenv.Load()
 	if err != nil {
@@ -135,7 +75,6 @@ func (b *Btwitter) Connect() error {
 	b.client = config.Client(oauth1.NoContext, token)
 	b.twitterClient = twitter.NewClient(b.client)
 
-	// b.RatelimitStatus()
 	user, err := b.GetAccountInfo()
 	if err != nil {
 		return err
@@ -154,133 +93,8 @@ func (b *Btwitter) Connect() error {
 		ProfileImageURL:      user.ProfileImageURL,
 		ProfileImageURLHTTPS: user.ProfileImageURLHttps,
 	}
-	/*
-		dmEvent, err := b.GetDmEvent(1)
-		if err != nil {
-			log.Println(err)
-			return err
-		}
-		b.parseLatestTimestamp(dmEvent)
-	*/
-	// go b.SyncMsg()
-	// go b.handleSyncUpdates()
+
 	return nil
-}
-func (b *Btwitter) parseLatestTimestamp(ev *twitter.DirectMessageEvents) {
-	for _, v := range ev.Events {
-		timeStamp, _ := strconv.Atoi(v.CreatedAt)
-
-		if timeStamp > b.LastMsgTimeStamp {
-			b.LastMsgTimeStamp = timeStamp
-			return
-		}
-	}
-}
-func (b *Btwitter) ProcessDmInfo(ev *twitter.DirectMessageEvents) {
-
-}
-
-func (b *Btwitter) Reserve() {
-	// Twitter client
-	client := twitter.NewClient(b.client)
-
-	// Home Timeline
-	tweets, resp, err := client.DirectMessages.EventsList(&twitter.DirectMessageEventsListParams{
-		Cursor: "",
-		Count:  0,
-	})
-	_, _, _ = tweets, resp, err
-
-	// Send a Tweet
-	newtweet, resp, err := client.DirectMessages.EventsNew(&twitter.DirectMessageEventsNewParams{
-		Event: &twitter.DirectMessageEvent{
-			CreatedAt: "",
-			ID:        "",
-			Type:      "",
-			Message: &twitter.DirectMessageEventMessage{
-				SenderID: "",
-				Target: &twitter.DirectMessageTarget{
-					RecipientID: "",
-				},
-				Data: &twitter.DirectMessageData{
-					Text: "",
-					Entities: &twitter.Entities{
-						Hashtags:     []twitter.HashtagEntity{},
-						Media:        []twitter.MediaEntity{},
-						Urls:         []twitter.URLEntity{},
-						UserMentions: []twitter.MentionEntity{},
-						Symbols:      []twitter.SymbolEntity{},
-						Polls:        []twitter.PollEntity{},
-					},
-					Attachment: &twitter.DirectMessageDataAttachment{},
-					QuickReply: &twitter.DirectMessageQuickReply{},
-					CTAs:       []twitter.DirectMessageCTA{},
-				},
-			},
-		},
-	})
-	_, _, _ = newtweet, resp, err
-
-	// Status Show
-	/*
-		tweet, resp, err := client.Show(585613041028431872, nil)
-
-		// Search Tweets
-		search, resp, err := client.Search.Tweets(&twitter.SearchTweetParams{
-			Query: "gopher",
-		})
-
-		// User Show
-		user, resp, err := client.Users.Show(&twitterUserShowParams{
-			ScreenName: "dghubble",
-		})
-
-		// Followers
-		followers, resp, err := client.Followers.List(&twitter.FollowerListParams{})
-	*/
-}
-func (b *Btwitter) SendInfo() {
-	time.Sleep(time.Second * 10)
-	for _, group := range b.Groups {
-		log.Println(group)
-		/*
-			userMemberId := map[string]string{}
-			users := []string{}
-			for _, user := range group.Users {
-				userMemberId[user.Username] = user.FullName
-
-				users = append(users, user.FullName)
-			}
-			b.Lock()
-			b.GroupsLatestMsg[group.Title] = group.LastPermanentItem.ID
-			b.Unlock()
-			configMessage := config.Message{
-				Text:     "test",
-				Channel:  group.Title,
-				Username: b.InstaAccount.Username,
-				UserID:   b.InstaAccount.Id,
-				Avatar:   "",
-				Account:  b.Account,
-				Event:    "new_users",
-				Protocol: "instagram",
-				ExtraNetworkInfo: config.ExtraNetworkInfo{
-					ChannelUsersMember: users,
-					ActionCommand:      "new_users",
-					ChannelId:          group.ID,
-					ChannelName:        group.Title,
-					ChannelType:        group.ThreadType,
-					TargetPlatform:     "appservice",
-					UsersMemberId:      userMemberId,
-					Mentions:           map[string]string{},
-				},
-			}
-			b.Remote <- configMessage
-		*/
-	}
-
-}
-func (b *Btwitter) HandleImport() {
-
 }
 
 func (b *Btwitter) Disconnect() error {
@@ -328,7 +142,6 @@ func (b *Btwitter) Send(msg config.Message) (string, error) {
 	switch msg.Event {
 
 	case "twitter-event":
-		// TODO gorotune
 		go b.HandleTwitterEvent(msg)
 		return "", nil
 
@@ -417,70 +230,6 @@ func (b *Btwitter) FetchParticipentInfo(PartcipentId string) (twitterUser, error
 	return participentInfo, nil
 }
 
-func (b *Btwitter) handleSyncUpdates() {
-	var err error
-	for eventMsg := range b.syncMsg {
-		senderInfo, ok := b.GetParticipentInfo(eventMsg.Message.SenderID)
-		if !ok {
-			senderInfo, err = b.FetchParticipentInfo(eventMsg.Message.SenderID)
-			if err != nil {
-				b.Log.Println(err)
-				continue
-			}
-		}
-
-		text := eventMsg.Message.Data.Text
-		if strings.Contains(eventMsg.Message.Data.Text, " https://t.co/") {
-			text = strings.Split(eventMsg.Message.Data.Text, " https://t.co/")[0]
-		}
-
-		rmsg := config.Message{
-			Text:     text,
-			Channel:  eventMsg.Message.SenderID,
-			Username: senderInfo.ScreenName,
-			UserID:   eventMsg.Message.SenderID,
-			Avatar:   "",
-			Account:  b.Account,
-			Event:    "direct_msg",
-			Protocol: "twitter",
-
-			ExtraNetworkInfo: config.ExtraNetworkInfo{
-				ChannelUsersMember: []string{},
-				ActionCommand:      "",
-				ChannelId:          senderInfo.ID,
-				ChannelName:        senderInfo.ScreenName,
-				ChannelType:        "direct_msg",
-				TargetPlatform:     "appservice",
-				UsersMemberId:      map[string]string{senderInfo.ID: senderInfo.ScreenName},
-				Mentions:           map[string]string{},
-			},
-		}
-
-		if eventMsg.Message != nil {
-			if eventMsg.Message.Data != nil {
-				if eventMsg.Message.Data.Attachment != nil {
-					if eventMsg.Message.Data.Attachment.Type == "media" {
-						if eventMsg.Message.Data.Attachment.Media.MediaURL != "" {
-							extraRmsg := rmsg
-							extraRmsg.Text = ""
-							err = b.HandleSendAttachment(&extraRmsg, eventMsg.Message.SenderID, eventMsg.Message.Data.Attachment.Media.MediaURL)
-							if err != nil {
-								b.Log.Println(err)
-							}
-							b.Remote <- extraRmsg
-						}
-					}
-
-				}
-			}
-
-		}
-		if rmsg.Text != "" {
-			b.Remote <- rmsg
-		}
-
-	}
-}
 func (b *Btwitter) HandleSendAttachment(rmsg *config.Message, senderID, mediaUrl string) error {
 	rmsg.Extra = make(map[string][]interface{})
 
@@ -495,29 +244,6 @@ func (b *Btwitter) HandleSendAttachment(rmsg *config.Message, senderID, mediaUrl
 	}
 	helper.HandleDownloadData(b.Log, rmsg, name, "", mediaUrl, &img, b.General)
 	return nil
-}
-
-func (b *Btwitter) handleEdit(rmsg config.Message) bool {
-
-	return true
-}
-
-func (b *Btwitter) handleReply(rmsg config.Message) bool {
-
-	return true
-}
-
-func (b *Btwitter) handleMemberChange() {
-	// Update the displayname on join messages, according to https://matrix.org/docs/spec/client_server/r0.6.1#events-on-change-of-profile-information
-
-}
-
-// handleDownloadFile handles file download
-
-// handleUploadFiles handles native upload of files.
-func (b *Btwitter) handleUploadImage(msg *config.Message) (string, error) {
-
-	return "", nil
 }
 
 func (b *Btwitter) handleSyncUpdatesTest(eventMsg twitter.DirectMessageEvent) {
@@ -574,7 +300,6 @@ func (b *Btwitter) RegisterParticipentInfo(participents map[string]twitterUser) 
 func (b *Btwitter) handleDmEvents(eventMsg twitter.DirectMessageEvent) {
 	senderInfo, ok := b.GetParticipentInfo(eventMsg.Message.SenderID)
 	if !ok {
-		b.Log.Println("TODO")
 		return
 	}
 
