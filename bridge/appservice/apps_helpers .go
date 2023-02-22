@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/42wim/matterbridge/bridge/config"
 	matrix "github.com/matterbridge/gomatrix"
 )
 
@@ -146,6 +147,7 @@ func (b *AppServMatrix) cacheDisplayName(mxid string, displayName string) string
 }
 
 // handleError converts errors into httpError.
+//
 //nolint:exhaustivestruct
 func handleError(err error) *httpError {
 	var mErr matrix.HTTPError
@@ -269,4 +271,30 @@ func (b *AppServMatrix) getroomsInfoAliasMap() map[string]string {
 	b.RUnlock()
 	return channels
 
+}
+func (b *AppServMatrix) AdjustExtra(msg *config.Message) {
+	if msg.Extra == nil {
+		return
+	}
+	res := []interface{}{}
+	_, ok := msg.Extra["file"]
+	if !ok {
+		return
+	}
+	for _, fi := range msg.Extra["file"] {
+		fb, err := json.Marshal(fi)
+		if err != nil {
+			b.Log.Errorf("Error marshalling file info: %s", err)
+			return
+		}
+		fi := config.FileInfo{}
+		err = json.Unmarshal(fb, &fi)
+		if err != nil {
+			b.Log.Errorf("Error unmarshalling file info: %s", err)
+			return
+		}
+		res = append(res, fi)
+	}
+
+	msg.Extra["file"] = res
 }

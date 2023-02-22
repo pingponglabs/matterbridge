@@ -107,7 +107,7 @@ func (b *API) JoinChannel(channel config.ChannelInfo) error {
 func (b *API) Send(msg config.Message) (string, error) {
 	b.Lock()
 	defer b.Unlock()
-	if b.GetBool("AppServiceLink") && msg.TargetPlatform != "api" {
+	if  msg.TargetPlatform != "api" {
 		return "", nil
 	}
 	// ignore delete messages

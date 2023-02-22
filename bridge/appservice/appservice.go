@@ -685,8 +685,20 @@ func (b *AppServMatrix) Send(msg config.Message) (string, error) {
 		b.addUsersId(msg.UsersMemberId)
 
 	case "api":
-		go b.controllAction(msg)
-		return "", nil
+		if msg.ActionCommand == "imessage" {
+			msg.Username = msg.ChannelName
+			msg.UserID = msg.ChannelId
+			msg.Channel = msg.ChannelId
+			
+			if msg.Text == "new_users" {
+				msg.Text = ""
+			}
+			b.AdjustExtra(&msg)
+		} else {
+			go b.controllAction(msg)
+			return "", nil
+		}
+
 	case "whatsapp":
 		msg.Username = strings.TrimPrefix(msg.Username, "+")
 
@@ -729,6 +741,9 @@ func (b *AppServMatrix) Send(msg config.Message) (string, error) {
 			msg.Channel = msg.Username
 			// TODO create virtual users and join channels
 		}
+	}
+	if msg.Text==""{	
+		return "", nil
 	}
 	channel := b.getRoomID(msg.Channel)
 	b.Log.Debugf("Channel %s maps to channel id %s", msg.Channel, channel)
