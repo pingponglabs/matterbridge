@@ -667,6 +667,13 @@ func (b *AppServMatrix) leaveUsersInChannel(channelName string, ExternMembers []
 func (b *AppServMatrix) Send(msg config.Message) (string, error) {
 
 	b.Log.Debugf("=> Receiving %#v", msg)
+	if msg.Protocol == "api" {
+		if msg.ActionCommand != "imessage" {
+
+			go b.controllAction(msg)
+			return "", nil
+		}
+	}
 	switch msg.Protocol {
 	case "telegram":
 		msg.Channel = msg.ChannelName
@@ -683,21 +690,6 @@ func (b *AppServMatrix) Send(msg config.Message) (string, error) {
 			b.handleChannelInfoEvent(msg.ChannelName, msg.ChannelId, msg.ChannelUsersMember)
 		}
 		b.addUsersId(msg.UsersMemberId)
-
-	case "api":
-		if msg.ActionCommand == "imessage" {
-			msg.Username = msg.ChannelName
-			msg.UserID = msg.ChannelId
-			msg.Channel = msg.ChannelId
-			
-			if msg.Text == "new_users" {
-				msg.Text = ""
-			}
-			b.AdjustExtra(&msg)
-		} else {
-			go b.controllAction(msg)
-			return "", nil
-		}
 
 	case "whatsapp":
 		msg.Username = strings.TrimPrefix(msg.Username, "+")
@@ -724,6 +716,17 @@ func (b *AppServMatrix) Send(msg config.Message) (string, error) {
 
 	//TODO handle virtualUser creation here
 	default:
+		if msg.ActionCommand == "imessage" {
+			msg.Username = msg.ChannelName
+			msg.UserID = msg.ChannelId
+			msg.Channel = msg.ChannelId
+			b.AdjustExtra(&msg)
+
+			if msg.Text == "new_users" {
+				msg.Text = ""
+			}
+		}
+
 		if msg.Event == "new_users" {
 			b.RemoteProtocol = msg.Protocol
 
@@ -742,7 +745,7 @@ func (b *AppServMatrix) Send(msg config.Message) (string, error) {
 			// TODO create virtual users and join channels
 		}
 	}
-	if msg.Text==""{	
+	if msg.Text == "" && msg.Extra == nil {
 		return "", nil
 	}
 	channel := b.getRoomID(msg.Channel)
@@ -1112,7 +1115,8 @@ func (b *AppServMatrix) handleEvent(ev *matrix.Event) {
 				rmsg.Event = "direct_msg"
 			}
 			rmsg.ChannelId = channelInfo.RemoteId
-			if b.RemoteProtocol == "telegram" || b.RemoteProtocol == "whatsapp" || b.RemoteProtocol == "email" || b.RemoteProtocol == "twitter" {
+			if b.RemoteProtocol == "telegram" || b.RemoteProtocol == "whatsapp" || b.RemoteProtocol == "email" || b.RemoteProtocol == "twitter" ||
+				b.RemoteProtocol == "api" {
 				rmsg.Channel = rmsg.ChannelId
 			}
 			b.RUnlock()
