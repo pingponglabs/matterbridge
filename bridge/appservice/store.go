@@ -107,6 +107,22 @@ func (b *AppServStore) createInfoTable(name string) error {
 	);`)
 	return err
 }
+func (b *AppServStore) SetAvatarUrl(url string) error {
+	_, err := b.db.Exec(`update info set avatar_url = $1`, url)
+	return err
+}
+func (b *AppServStore) SetRemoteProtocol(protocol string) error {
+	_, err := b.db.Exec(`update info set remote_protocol = $1`, protocol)
+	return err
+}
+func (b *AppServStore) GetAppServiceInfo() (string, string, error) {
+	remoteProtocol := ""
+	avatarUrl := ""
+	err := b.db.QueryRow(`select remote_protocol, avatar_url from info`).Scan(&remoteProtocol, &avatarUrl)
+
+	return remoteProtocol, avatarUrl, err
+
+}
 func (b *AppServStore) createChanelVirtualUserJunctionTable(name string) error {
 	_, err := b.db.Exec(`
 		CREATE TABLE channel_user (

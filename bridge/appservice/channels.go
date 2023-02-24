@@ -19,7 +19,7 @@ func (b *AppServMatrix) initControlRoom() {
 	if _, ok := b.getChannelInfo(controlRoom); ok {
 		return
 	}
-	b.uploadAvatar()
+	
 
 	time.Sleep(15 * time.Second)
 	resp, err := b.apsCli.CreateRoom(&gomatrix.ReqCreateRoom{
@@ -86,6 +86,7 @@ func (b *AppServMatrix) uploadAvatar() {
 	}
 
 	b.AvatarUrl = url.ContentURI.String()
+	b.DbStore.SetAvatarUrl(b.AvatarUrl)
 }
 
 func (b *AppServMatrix) isChannelExist(channelName string) bool {

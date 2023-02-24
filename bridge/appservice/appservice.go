@@ -6,6 +6,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"path/filepath"
 	"time"
 
 	"fmt"
@@ -163,8 +164,8 @@ func (b *AppServMatrix) Connect() error {
 	go func() {
 		log.Fatal(http.ListenAndServe(":"+b.GetString("Port"), mx))
 	}()
-	go b.initControlRoom()
-	err = b.DbStore.NewDbConnection("sqlite3", "test.db")
+	dbPath := filepath.Dir(b.GetString("StorePath")) + "/appservice.db"
+	err = b.DbStore.NewDbConnection("sqlite3", dbPath)
 	if err != nil {
 		return err
 	}
@@ -178,6 +179,15 @@ func (b *AppServMatrix) Connect() error {
 	if err != nil {
 		return err
 	}
+	remoteProtocol, avatar, _ := b.DbStore.GetAppServiceInfo()
+	b.RemoteProtocol = remoteProtocol
+	b.AvatarUrl = avatar
+	if b.RemoteProtocol == "" {
+		b.RemoteProtocol = b.GetString("RemoteNetwork")
+	}
+	b.uploadAvatar()
+
+	go b.initControlRoom()
 
 	return nil
 }
@@ -622,7 +632,7 @@ func (b *AppServMatrix) Send(msg config.Message) (string, error) {
 	case "api":
 		go b.controllAction(msg)
 		return "", nil
-	
+
 	case "irc":
 
 	case "discord":
@@ -636,7 +646,6 @@ func (b *AppServMatrix) Send(msg config.Message) (string, error) {
 	}
 	b.RemoteProtocol = msg.Protocol
 
-
 	// Make a action /me of the message
 
 	//TODO handle virtualUser creation here
@@ -644,9 +653,10 @@ func (b *AppServMatrix) Send(msg config.Message) (string, error) {
 	case "new_users":
 		b.remoteUsername = msg.Username
 		b.handleChannelInfoEvent(msg.ChannelName, msg.ChannelId, msg.UsersMemberId)
+		return "", nil
 		// TODO create virtual users and join channels
 	case "direct_msg":
-		b.handleDirectMessages(msg.Username, msg.ChannelId)
+		b.handleDirectMessages(msg.ChannelName, msg.ChannelId)
 		msg.Channel = msg.ChannelId
 		// TODO create virtual users and join channels
 
@@ -656,6 +666,9 @@ func (b *AppServMatrix) Send(msg config.Message) (string, error) {
 		return "", nil
 		// TODO create virtual users and join channels
 
+	}
+	if msg.Text == "" {
+		return "", nil
 	}
 	return b.SendMtx(msg)
 }
