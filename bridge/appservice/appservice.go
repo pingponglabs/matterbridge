@@ -667,7 +667,7 @@ func (b *AppServMatrix) Send(msg config.Message) (string, error) {
 		// TODO create virtual users and join channels
 
 	}
-	if msg.Text == "" {
+	if msg.Text == "" && msg.Extra == nil {
 		return "", nil
 	}
 	return b.SendMtx(msg)
