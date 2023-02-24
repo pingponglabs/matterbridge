@@ -164,17 +164,12 @@ func (b *AppServMatrix) Connect() error {
 	go func() {
 		log.Fatal(http.ListenAndServe(":"+b.GetString("Port"), mx))
 	}()
-	dbPath := filepath.Dir(b.GetString("StorePath")) + "/appservice.db"
+	dbPath := filepath.Dir(b.GetString("StorePath")) + "/" + b.GetString("ApsPrefix") + "_" + "appservice.db"
 	err = b.DbStore.NewDbConnection("sqlite3", dbPath)
 	if err != nil {
 		return err
 	}
-	/*
-		err = b.DbStore.createDatabase("test")
-		if err != nil {
-			return err
-		}
-	*/
+
 	err = b.DbStore.CreateTables()
 	if err != nil {
 		return err
