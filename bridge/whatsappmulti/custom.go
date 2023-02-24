@@ -37,7 +37,8 @@ func (b *Bwhatsapp) SendGroupsInfo(groups []*types.GroupInfo) {
 			contactNum := contact.JID.String()
 			contactName := b.getSenderName(contact.JID)
 			contacts = append(contacts, contactName)
-			contactsName[contactName] = contactNum
+			contactsName[contactNum] = contactName
+
 		}
 		b.Remote <- config.Message{
 			Username: b.GetString("Number"), Text: "new_users",
