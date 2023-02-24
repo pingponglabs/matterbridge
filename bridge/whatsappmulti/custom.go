@@ -20,7 +20,7 @@ func (b *Bwhatsapp) IsSetupDM(userID string) bool {
 }
 func (b *Bwhatsapp) HandleDirectMessage(rmsg *config.Message) {
 	b.dmSetupList[rmsg.UserID] = true
-	rmsg.Channel = rmsg.Username
+	rmsg.Channel = rmsg.UserID
 	rmsg.Event = "direct_msg"
 	rmsg.Protocol = "whatsapp"
 	rmsg.ChannelName = rmsg.Username
@@ -37,11 +37,12 @@ func (b *Bwhatsapp) SendGroupsInfo(groups []*types.GroupInfo) {
 			contactNum := contact.JID.String()
 			contactName := b.getSenderName(contact.JID)
 			contacts = append(contacts, contactName)
-			contactsName[contactName] = contactNum
+			contactsName[contactNum] = contactName
+
 		}
 		b.Remote <- config.Message{
 			Username: b.GetString("Number"), Text: "new_users",
-			Channel: group.GroupName.Name, Account: b.Account,
+			Channel: group.JID.String(), Account: b.Account,
 			Event:    "new_users",
 			Protocol: "whatsapp",
 			ExtraNetworkInfo: config.ExtraNetworkInfo{

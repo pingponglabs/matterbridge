@@ -1,4 +1,3 @@
-
 package bwhatsapp
 
 import (

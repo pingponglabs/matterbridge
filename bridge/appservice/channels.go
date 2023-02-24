@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/42wim/matterbridge/bridge/config"
 	gomatrix "maunium.net/go/mautrix"
 	"maunium.net/go/mautrix/event"
 	id "maunium.net/go/mautrix/id"
@@ -15,10 +16,10 @@ import (
 
 func (b *AppServMatrix) initControlRoom() {
 	controlRoom := b.GetString("ApsPrefix") + "appservice_control"
-	if _, ok := b.getRoomInfo(controlRoom); ok {
+	if _, ok := b.getChannelInfo(controlRoom); ok {
 		return
 	}
-	b.uploadAvatar()
+	
 
 	time.Sleep(15 * time.Second)
 	resp, err := b.apsCli.CreateRoom(&gomatrix.ReqCreateRoom{
@@ -34,16 +35,14 @@ func (b *AppServMatrix) initControlRoom() {
 	roomId := resp.RoomID.String()
 
 	b.sendRoomAvatarEvent(roomId)
-	b.setRoomInfo(controlRoom, &MatrixRoomInfo{
-		RoomName: controlRoom,
-		Alias:    roomId,
-		Members:  nil,
-		IsDirect: true,
-		RemoteId: controlRoom,
+	b.setRoomInfo(controlRoom,nil, &ChannelInfo{
+		RemoteName:   controlRoom,
+		MatrixRoomID: roomId,
+		IsDirect:     true,
+		RemoteID:     controlRoom,
 	})
 
-	b.setRoomMap(roomId, controlRoom)
-	b.saveState()
+//	b.setRoomMap(roomId, controlRoom)
 
 }
 func (b *AppServMatrix) sendRoomAvatarEvent(roomId string) error {
@@ -87,59 +86,27 @@ func (b *AppServMatrix) uploadAvatar() {
 	}
 
 	b.AvatarUrl = url.ContentURI.String()
+	b.DbStore.SetAvatarUrl(b.AvatarUrl)
 }
 
 func (b *AppServMatrix) isChannelExist(channelName string) bool {
-	_, ok := b.getRoomInfo(channelName)
-
+	_, ok := b.getChannelInfo(channelName)
 	return ok
 
 }
-func (b *AppServMatrix) newUsersInChannel(channelName string, ExternMembers []string) []string {
-	newMembers := []string{}
-	roomInfo, ok := b.getRoomInfo(channelName)
-	if !ok {
-		return ExternMembers
-	}
-	b.RLock()
-	for _, ExternMember := range ExternMembers {
-		exist := false
-		for _, member := range roomInfo.Members {
-			if ExternMember == member.Name {
-				exist = true
-				break
-			}
 
-		}
-		if !exist {
-			newMembers = append(newMembers, ExternMember)
-		}
-	}
-	b.RUnlock()
-	return newMembers
+func (b *AppServMatrix) AddNewChannel(channel, roomId, remoteId string, isDirect bool) error {
 
-}
-
-func (b *AppServMatrix) joinRoom(roomId, userID, Token string) error {
-	cli, err := gomatrix.NewClient(b.GetString("Server"), id.UserID(userID), Token)
-	if err != nil {
-		return err
+	if _, ok := b.getChannelInfo(channel); ok {
+		return fmt.Errorf("channel already exist")
 	}
-	_, err = cli.JoinRoom(roomId, "", nil)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-func (b *AppServMatrix) AddNewChannel(channel, roomId, remoteId string, isDirect bool) {
-
-	b.setRoomInfo(channel, &MatrixRoomInfo{
-		RoomName: channel,
-		Alias:    roomId,
-		Members:  []ChannelMember{},
-		IsDirect: isDirect,
-		RemoteId: remoteId,
+	return b.DbStore.createChannel(&ChannelInfo{
+		RemoteName:   channel,
+		MatrixRoomID: roomId,
+		IsDirect:     isDirect,
+		RemoteID:     remoteId,
 	})
+
 }
 
 var whitespace = "\t\n\x0b\x0c\r "
@@ -212,42 +179,25 @@ func (b *AppServMatrix) inviteUserToRoom(roomId string, inviteId string) error {
 	}
 	return nil
 }
-func (b *AppServMatrix) removeUsersFromChannel(channel string, members []string) {
-	chanInfo, ok := b.getRoomInfo(channel)
+func (b *AppServMatrix) RemoveUserFromRoom(reason string, mtxID, alias string) {
+	userId, ok := b.getVirtualUserInfo(mtxID)
 	if !ok {
+		log.Println(fmt.Errorf("user %s not exist on appservice database", mtxID))
 		return
 	}
-	for _, member := range members {
 
-		for i, v := range chanInfo.Members {
-			if v.Name == member {
-				chanInfo.Members = append(chanInfo.Members[:i], chanInfo.Members[i+1:]...)
-				break
-			}
-		}
-		userId, ok := b.getVirtualUserInfo(member)
-		if !ok {
-			log.Println(fmt.Errorf("user %s not exist on appservice database", member))
-			continue
-		}
-
-		_, err := b.apsCli.KickUser(id.RoomID(b.getRoomID(channel)), &gomatrix.ReqKickUser{
-			Reason: "user parts",
-			UserID: id.UserID(userId.Id),
-		})
-		if err != nil {
-			log.Println(err)
-		}
+	_, err := b.apsCli.KickUser(id.RoomID(alias), &gomatrix.ReqKickUser{
+		Reason: reason,
+		UserID: id.UserID(userId.MatrixID),
+	})
+	if err != nil {
+		log.Println(err)
 	}
 }
 
-func (b *AppServMatrix) getWhatsappName(channelJid string) string {
-	b.RLock()
-	defer b.RUnlock()
-	for i, v := range b.roomsInfo {
-		if v.RemoteId == channelJid {
-			return i
-		}
+func (b *AppServMatrix) adjustChannel(rmsg *config.Message) {
+	switch b.RemoteProtocol {
+	case "discord":
+		rmsg.Channel = "ID:" + rmsg.Channel
 	}
-	return ""
 }

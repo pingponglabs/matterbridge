@@ -28,16 +28,13 @@ func newMatrixUsername(username string) *matrixUsername {
 }
 
 // getRoomID retrieves a matching room ID from the channel name.
-func (b *AppServMatrix) getRoomID(channel string) string {
-	b.RLock()
-	defer b.RUnlock()
-	for ID, name := range b.RoomMap {
-		if name == channel {
-			return ID
-		}
+func (b *AppServMatrix) getRoomID(channelID string) string {
+	// get the room ID from the channel Id
+	channelInfo, err := b.DbStore.getChannelByID(channelID)
+	if err != nil {
+		return ""
 	}
-
-	return ""
+	return channelInfo.MatrixRoomID
 }
 func (b *AppServMatrix) setRoomMap(roomId, channel string) {
 	b.Lock()
@@ -46,10 +43,11 @@ func (b *AppServMatrix) setRoomMap(roomId, channel string) {
 
 }
 func (b *AppServMatrix) getRoomMapChannel(roomId string) (string, bool) {
-	b.RLock()
-	channel, ok := b.RoomMap[roomId]
-	b.RUnlock()
-	return channel, ok
+	ChannelInfo, err := b.DbStore.getChannelByMatrixID(roomId)
+	if err != nil {
+		return "", false
+	}
+	return ChannelInfo.RemoteID, true
 
 }
 func (b *AppServMatrix) GetAllMapChannels() []string {
@@ -146,6 +144,7 @@ func (b *AppServMatrix) cacheDisplayName(mxid string, displayName string) string
 }
 
 // handleError converts errors into httpError.
+//
 //nolint:exhaustivestruct
 func handleError(err error) *httpError {
 	var mErr matrix.HTTPError
@@ -237,36 +236,68 @@ func (b *AppServMatrix) retry(f func() error) error {
 	}
 }
 
-func (b *AppServMatrix) setRoomInfo(channel string, roomInf *MatrixRoomInfo) {
-	b.Lock()
-	b.roomsInfo[channel] = roomInf
-	b.Unlock()
+func (b *AppServMatrix) setRoomInfo(channel string, members []string, roomInf *ChannelInfo) error {
+	err := b.DbStore.createChannel(roomInf)
+	if err != nil {
+		return err
+	}
+
+	for _, v := range members {
+		err = b.DbStore.setUserForChannel(roomInf.RemoteID, v, false)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+func (b *AppServMatrix) setRoomInfobyMtxID(channel string, mtxIds []string, roomInf *ChannelInfo) error {
+	err := b.DbStore.createChannel(roomInf)
+	if err != nil {
+		return err
+	}
+	for _, v := range mtxIds {
+		err = b.DbStore.setUserForChannelByMatrixID(roomInf.RemoteID, v, false)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 
 }
-func (b *AppServMatrix) getRoomInfo(channel string) (*MatrixRoomInfo, bool) {
-	b.RLock()
-	roomInf, ok := b.roomsInfo[channel]
-	b.RUnlock()
-	return roomInf, ok
+func (b *AppServMatrix) getChannelInfo(channelID string) (*ChannelInfo, bool) {
 
+	channelInfo, err := b.DbStore.getChannelByID(channelID)
+	if err != nil {
+		if err != ErrChannelNotFound {
+			return nil, false
+		}
+		b.Log.Errorf("Error getting channel info from database: %s", err)
+		return nil, false
+	}
+
+	return channelInfo, true
 }
-func (b *AppServMatrix) getAllRoomInfo() []*MatrixRoomInfo {
-	roomsInfo := []*MatrixRoomInfo{}
+func (b *AppServMatrix) getChannelInfoByMtxID(mtxRoomID string) (*ChannelInfo, bool) {
+
+	channelInfo, err := b.DbStore.getChannelByMatrixID(mtxRoomID)
+	if err != nil {
+		if err != ErrChannelNotFound {
+			return nil, false
+		}
+		b.Log.Errorf("Error getting channel info from database: %s", err)
+		return nil, false
+	}
+
+	return channelInfo, true
+}
+
+func (b *AppServMatrix) getAllRoomInfo() []*ChannelInfo {
+	roomsInfo := []*ChannelInfo{}
 	b.RLock()
-	for _, v := range b.roomsInfo {
+	for _, v := range b.channelsInfo {
 		roomsInfo = append(roomsInfo, v)
 	}
 	b.RUnlock()
 	return roomsInfo
-
-}
-func (b *AppServMatrix) getroomsInfoAliasMap() map[string]string {
-	channels := make(map[string]string)
-	b.RLock()
-	for k, v := range b.roomsInfo {
-		channels[k] = v.Alias
-	}
-	b.RUnlock()
-	return channels
 
 }

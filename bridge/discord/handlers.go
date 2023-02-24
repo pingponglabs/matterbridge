@@ -120,9 +120,11 @@ func (b *Bdiscord) messageCreate(s *discordgo.Session, m *discordgo.MessageCreat
 
 	// set channel name
 	rmsg.Channel = b.getChannelName(m.ChannelID)
+	rmsg.ChannelId = m.ChannelID
 	if m.GuildID == "" {
 		rmsg.Channel = m.Author.Username
-		rmsg.ChannelId = m.ChannelID
+		rmsg.ChannelName = m.Author.Username
+		rmsg.ChannelId = m.Author.ID
 		rmsg.Event = "direct_msg"
 	}
 

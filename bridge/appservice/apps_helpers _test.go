@@ -18,27 +18,26 @@ func TestAppServMatrix_OutcomingMention(t *testing.T) {
 		UserID      string
 		NicknameMap map[string]NicknameCacheEntry
 		RoomMap     map[string]string
-		roomsInfo   map[string]MatrixRoomInfo
+		roomsInfo   map[string]ChannelInfo
 		rateMutex   sync.RWMutex
 		RWMutex     sync.RWMutex
 		Config      *bridge.Config
 	}
 	b := AppServMatrix{
-		mc:          &matrix.Client{},
-		apsCli:      &gomatrix.Client{},
-		UserID:      "",
-		NicknameMap: map[string]NicknameCacheEntry{},
-		RoomMap:     map[string]string{},
-		roomsInfo:   map[string]*MatrixRoomInfo{},
-		rateMutex:   sync.RWMutex{},
-		RWMutex:     sync.RWMutex{},
-		Config:      &bridge.Config{},
+		mc:           &matrix.Client{},
+		apsCli:       &gomatrix.Client{},
+		UserID:       "",
+		NicknameMap:  map[string]NicknameCacheEntry{},
+		RoomMap:      map[string]string{},
+		channelsInfo: map[string]*ChannelInfo{},
+		rateMutex:    sync.RWMutex{},
+		RWMutex:      sync.RWMutex{},
+		Config:       &bridge.Config{},
 	}
 	b.Connect()
 
-	b.loadState()
 	userMention := "_irc_bridge_wcraftn"
 	text := fmt.Sprintf("hi %s:", userMention)
-	res, _ := b.outcomingMention("discord",text, text)
+	res, _ := b.outcomingMention("discord", text, text)
 	log.Println(res)
 }

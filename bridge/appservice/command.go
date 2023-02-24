@@ -26,7 +26,6 @@ func (a *AppServMatrix) controllAction(msg config.Message) {
 		msg.UserID = a.UserID
 		msg.Account = a.Account
 		a.Remote <- msg
-	
 	}
 
 }
