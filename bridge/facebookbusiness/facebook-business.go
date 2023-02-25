@@ -127,7 +127,7 @@ func (b *BfacebookBusiness) InitUsers(convsInfo []ConversationInfo) {
 		}
 
 		configMessage := config.Message{
-			Text:     "test",
+			Text:     "new_users",
 			Channel:  ch.Name,
 			UserID:   b.UserID,
 			Avatar:   "",

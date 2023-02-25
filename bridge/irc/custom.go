@@ -48,7 +48,7 @@ func (b *Birc) HandleEndNames(client *girc.Client, event girc.Event) {
 	sort.Strings(b.names[channel])
 	copy(members, b.names[channel])
 	b.Remote <- config.Message{
-		Username: b.Nick, Text: b.formatnicks(b.names[channel]),
+		Username: b.Nick, Text: "new_users",
 		Channel: channel, Account: b.Account,
 		ExtraNetworkInfo: config.ExtraNetworkInfo{ChannelUsersMember: members},
 		Event:            "new_users",

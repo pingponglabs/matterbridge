@@ -182,7 +182,7 @@ func (b *Binstagram) SendInfo() {
 		b.GroupsLatestMsg[group.Title] = group.LastPermanentItem.ID
 		b.Unlock()
 		configMessage := config.Message{
-			Text:     "test",
+			Text:     "new_users",
 			Channel:  group.Title,
 			Username: b.InstaAccount.Username,
 			UserID:   b.InstaAccount.Id,

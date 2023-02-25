@@ -600,6 +600,7 @@ func (b *AppServMatrix) handleTelegramMsg(msg *config.Message) {
 	switch msg.ChannelType {
 	case "channel":
 		msg.Username = msg.ChannelName + "_bot"
+		msg.Event = "direct_msg"
 	case "private":
 		msg.Event = "direct_msg"
 		msg.Channel = msg.UserID
@@ -640,6 +641,9 @@ func (b *AppServMatrix) Send(msg config.Message) (string, error) {
 
 	}
 	b.RemoteProtocol = msg.Protocol
+	if msg.Text == "new_users" {
+		msg.Text = ""
+	}
 
 	// Make a action /me of the message
 
@@ -648,7 +652,6 @@ func (b *AppServMatrix) Send(msg config.Message) (string, error) {
 	case "new_users":
 		b.remoteUsername = msg.Username
 		b.handleChannelInfoEvent(msg.ChannelName, msg.ChannelId, msg.UsersMemberId)
-		return "", nil
 		// TODO create virtual users and join channels
 	case "direct_msg":
 		b.handleDirectMessages(msg.ChannelName, msg.ChannelId)
