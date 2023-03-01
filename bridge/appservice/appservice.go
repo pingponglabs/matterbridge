@@ -174,11 +174,16 @@ func (b *AppServMatrix) Connect() error {
 	if err != nil {
 		return err
 	}
-	remoteProtocol, avatar, _ := b.DbStore.GetAppServiceInfo()
+	err = b.DbStore.SetConfigName(b.GetString("ApsPrefix"))
+	if err != nil {
+		return err
+	}
+	remoteProtocol, avatar, _ := b.DbStore.GetAppServiceInfo(b.GetString("ApsPrefix"))
 	b.RemoteProtocol = remoteProtocol
 	b.AvatarUrl = avatar
 	if b.RemoteProtocol == "" {
 		b.RemoteProtocol = b.GetString("RemoteNetwork")
+		b.DbStore.SetRemoteProtocol(b.GetString("ApsPrefix"), b.RemoteProtocol)
 	}
 	b.uploadAvatar()
 
@@ -266,7 +271,7 @@ func (b *AppServMatrix) handleDirectInvites(mtxUserId, roomId, Sender string) er
 	if errmtx != nil {
 		return errmtx
 	}
-	err := mc.SetDisplayName(userInfo.Username)
+	err := mc.SetDisplayName(userInfo.Username + "(" + b.RemoteProtocol + ")")
 	if err != nil {
 		log.Println(err)
 	}
@@ -457,16 +462,6 @@ func (b *AppServMatrix) registerUsersList(users map[string]string) {
 }
 
 func (b *AppServMatrix) handleDirectMessages(channelName, channelID string) {
-	if b.isChannelExist(channelID) {
-		return
-	}
-	if channelName == b.remoteUsername {
-		return
-	}
-	channelName = strings.TrimPrefix(channelName, "@")
-	if b.isChannelExist(channelName) {
-		return
-	}
 
 	_, ok := b.getVirtualUserInfo(channelID)
 	if !ok {
@@ -490,7 +485,7 @@ func (b *AppServMatrix) handleDirectMessages(channelName, channelID string) {
 	}
 	resp, err := mc.CreateRoom(&matrix.ReqCreateRoom{
 
-		Name:   channelName,
+		Name:   channelName + "(" + b.RemoteProtocol + ")",
 		Topic:  channelName + " direct message room",
 		Invite: []string{b.GetString("MainUser")},
 
@@ -621,7 +616,15 @@ func (b *AppServMatrix) HandleActionCommand(msg config.Message) {
 		b.HandleLeaveUsers(msg.Channel, msg.ChannelUsersMember)
 	}
 }
+
+var once sync.Once
+
 func (b *AppServMatrix) Send(msg config.Message) (string, error) {
+	once.Do(func() {
+		if b.RemoteProtocol == "" {
+			b.DbStore.SetRemoteProtocol(b.GetString("ApsPrefix"), msg.Protocol)
+		}
+	})
 
 	b.Log.Debugf("=> Receiving %#v", msg)
 	switch msg.Protocol {
@@ -654,7 +657,9 @@ func (b *AppServMatrix) Send(msg config.Message) (string, error) {
 		b.handleChannelInfoEvent(msg.ChannelName, msg.ChannelId, msg.UsersMemberId)
 		// TODO create virtual users and join channels
 	case "direct_msg":
-		b.handleDirectMessages(msg.ChannelName, msg.ChannelId)
+		if !b.isChannelExist(msg.ChannelId) {
+			b.handleDirectMessages(msg.ChannelName, msg.ChannelId)
+		}
 		msg.Channel = msg.ChannelId
 		// TODO create virtual users and join channels
 

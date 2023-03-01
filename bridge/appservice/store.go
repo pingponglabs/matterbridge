@@ -102,24 +102,45 @@ func (b *AppServStore) createVirtualUsersTable(name string) error {
 func (b *AppServStore) createInfoTable(name string) error {
 	_, err := b.db.Exec(`CREATE TABLE IF NOT EXISTS ` + name + ` (
 		id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+		config_name VARCHAR(255) NOT NULL,
 		remote_protocol VARCHAR(255) NOT NULL,
 		avatar_url VARCHAR(255) NOT NULL
 	);`)
+	if err != nil {
+		return err
+	}
+
 	return err
 }
-func (b *AppServStore) SetAvatarUrl(url string) error {
-	_, err := b.db.Exec(`update info set avatar_url = $1`, url)
+func (b *AppServStore) SetConfigName(configName string) error {
+	// check if config_name exists , if not insert it
+
+	var id int
+	err := b.db.QueryRow(`select id from info where config_name = $1`, configName).Scan(&id)
+	if err == sql.ErrNoRows {
+		_, err = b.db.Exec(`insert into info (config_name, remote_protocol, avatar_url) values ($1, $2, $3)`, configName, "", "")
+		return err
+	}
+
+	return err
+
+}
+
+func (b *AppServStore) SetAvatarUrl(configName, url string) error {
+	// update avatart_url set url where config_name = $1
+	_, err := b.db.Exec(`update info set avatar_url = $1 where config_name = $2`, url, configName)
 	return err
 }
-func (b *AppServStore) SetRemoteProtocol(protocol string) error {
-	_, err := b.db.Exec(`update info set remote_protocol = $1`, protocol)
+func (b *AppServStore) SetRemoteProtocol(configName, protocol string) error {
+	// update remote_protocol set protocol where config_name = $1
+	_, err := b.db.Exec(`update info set remote_protocol = $1 where config_name = $2`, protocol, configName)
 	return err
 }
-func (b *AppServStore) GetAppServiceInfo() (string, string, error) {
+func (b *AppServStore) GetAppServiceInfo(confName string) (string, string, error) {
 	remoteProtocol := ""
 	avatarUrl := ""
-	err := b.db.QueryRow(`select remote_protocol, avatar_url from info`).Scan(&remoteProtocol, &avatarUrl)
-
+	// select remote_protocol, avatar_url from info where config_name= $1
+	err := b.db.QueryRow(`select remote_protocol, avatar_url from info where config_name = $1`, confName).Scan(&remoteProtocol, &avatarUrl)
 	return remoteProtocol, avatarUrl, err
 
 }

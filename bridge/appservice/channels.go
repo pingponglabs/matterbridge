@@ -86,7 +86,7 @@ func (b *AppServMatrix) uploadAvatar() {
 	}
 
 	b.AvatarUrl = url.ContentURI.String()
-	b.DbStore.SetAvatarUrl(b.AvatarUrl)
+	b.DbStore.SetAvatarUrl(b.GetString("ApsPrefix"), b.AvatarUrl)
 }
 
 func (b *AppServMatrix) isChannelExist(channelName string) bool {
