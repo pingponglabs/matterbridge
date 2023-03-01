@@ -202,6 +202,8 @@ type Protocol struct {
 	IMAPUsername string // email
 	IMAPPassword string // email
 
+	IMAPFetchMode bool // email
+
 }
 
 type ChannelOptions struct {

@@ -635,12 +635,17 @@ func (b *AppServMatrix) Send(msg config.Message) (string, error) {
 			b.RemoteProtocol = msg.Protocol
 		}
 	})
+	if msg.Protocol == "api" {
+		if msg.ActionCommand != "imessage" {
+			go b.controllAction(msg)
+			return "", nil
+		} else {
+			msg.Protocol = "imessage"
+		}
+	}
 
 	b.Log.Debugf("=> Receiving %#v", msg)
 	switch msg.Protocol {
-	case "api":
-		go b.controllAction(msg)
-		return "", nil
 
 	case "irc":
 
@@ -651,9 +656,12 @@ func (b *AppServMatrix) Send(msg config.Message) (string, error) {
 		b.handleTelegramMsg(&msg)
 	case "whatsapp":
 		msg.Username = strings.TrimPrefix(msg.Username, "+")
-
+	case "imessage":
+		msg.Username = msg.ChannelName
+		msg.UserID = msg.ChannelId
+		msg.Channel = msg.ChannelId
+		b.AdjustExtra(&msg)
 	}
-	b.RemoteProtocol = msg.Protocol
 	if msg.Text == "new_users" {
 		msg.Text = ""
 	}

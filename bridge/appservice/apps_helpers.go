@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/42wim/matterbridge/bridge/config"
 	matrix "github.com/matterbridge/gomatrix"
 )
 
@@ -300,4 +301,30 @@ func (b *AppServMatrix) getAllRoomInfo() []*ChannelInfo {
 	b.RUnlock()
 	return roomsInfo
 
+}
+func (b *AppServMatrix) AdjustExtra(msg *config.Message) {
+	if msg.Extra == nil {
+		return
+	}
+	res := []interface{}{}
+	_, ok := msg.Extra["file"]
+	if !ok {
+		return
+	}
+	for _, fi := range msg.Extra["file"] {
+		fb, err := json.Marshal(fi)
+		if err != nil {
+			b.Log.Errorf("Error marshalling file info: %s", err)
+			return
+		}
+		fi := config.FileInfo{}
+		err = json.Unmarshal(fb, &fi)
+		if err != nil {
+			b.Log.Errorf("Error unmarshalling file info: %s", err)
+			return
+		}
+		res = append(res, fi)
+	}
+
+	msg.Extra["file"] = res
 }
