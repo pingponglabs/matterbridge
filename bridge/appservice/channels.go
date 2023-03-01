@@ -19,7 +19,6 @@ func (b *AppServMatrix) initControlRoom() {
 	if _, ok := b.getChannelInfo(controlRoom); ok {
 		return
 	}
-	
 
 	time.Sleep(15 * time.Second)
 	resp, err := b.apsCli.CreateRoom(&gomatrix.ReqCreateRoom{
@@ -35,14 +34,13 @@ func (b *AppServMatrix) initControlRoom() {
 	roomId := resp.RoomID.String()
 
 	b.sendRoomAvatarEvent(roomId)
-	b.setRoomInfo(controlRoom,nil, &ChannelInfo{
+	b.setRoomInfo(controlRoom, nil, &ChannelInfo{
 		RemoteName:   controlRoom,
 		MatrixRoomID: roomId,
 		IsDirect:     true,
 		RemoteID:     controlRoom,
 	})
 
-//	b.setRoomMap(roomId, controlRoom)
 
 }
 func (b *AppServMatrix) sendRoomAvatarEvent(roomId string) error {
@@ -120,6 +118,7 @@ func AlterAlias(s string) string {
 	return s
 }
 func (b *AppServMatrix) createRoom(roomName string, members []string, isDirect bool) (string, error) {
+	roomName = roomName + " ( " + b.RemoteProtocol + " )"
 	preset := "public_chat"
 	invites := []id.UserID{}
 	for _, v := range members {

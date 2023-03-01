@@ -271,7 +271,7 @@ func (b *AppServMatrix) handleDirectInvites(mtxUserId, roomId, Sender string) er
 	if errmtx != nil {
 		return errmtx
 	}
-	err := mc.SetDisplayName(userInfo.Username + "(" + b.RemoteProtocol + ")")
+	err := mc.SetDisplayName(userInfo.Username + " ( " + b.RemoteProtocol + " )")
 	if err != nil {
 		log.Println(err)
 	}
@@ -483,9 +483,17 @@ func (b *AppServMatrix) handleDirectMessages(channelName, channelID string) {
 	if errmx != nil {
 		log.Println(fmt.Errorf("failed to create virtual user client %s ", channelName))
 	}
+	displayName := ""
+	displayNameReq, err := mc.GetOwnDisplayName()
+	if err != nil {
+		log.Println(fmt.Errorf("failed to get display name %s ", channelName))
+	} else {
+		displayName = displayNameReq.DisplayName
+	}
+
 	resp, err := mc.CreateRoom(&matrix.ReqCreateRoom{
 
-		Name:   channelName + "(" + b.RemoteProtocol + ")",
+		Name:   displayName + " ( " + b.RemoteProtocol + " )",
 		Topic:  channelName + " direct message room",
 		Invite: []string{b.GetString("MainUser")},
 
@@ -599,6 +607,7 @@ func (b *AppServMatrix) handleTelegramMsg(msg *config.Message) {
 	case "private":
 		msg.Event = "direct_msg"
 		msg.Channel = msg.UserID
+		msg.ChannelName = msg.Username
 	case "group":
 		msg.Event = "new_users"
 	default:
@@ -623,6 +632,7 @@ func (b *AppServMatrix) Send(msg config.Message) (string, error) {
 	once.Do(func() {
 		if b.RemoteProtocol == "" {
 			b.DbStore.SetRemoteProtocol(b.GetString("ApsPrefix"), msg.Protocol)
+			b.RemoteProtocol = msg.Protocol
 		}
 	})
 
