@@ -3,6 +3,7 @@ package bappservice
 import (
 	"bytes"
 	"encoding/json"
+	"flag"
 	"io"
 	"log"
 	"net/http"
@@ -164,7 +165,16 @@ func (b *AppServMatrix) Connect() error {
 	go func() {
 		log.Fatal(http.ListenAndServe(":"+b.GetString("Port"), mx))
 	}()
-	dbPath := filepath.Dir(b.GetString("StorePath")) + "/" + b.GetString("ApsPrefix") + "_" + "appservice.db"
+	storePathFlag := flag.Lookup("conf")
+	storepath := ""
+	if storePathFlag == nil {
+		log.Println("conf path flag not defined")
+	} else {
+		storepath = storePathFlag.Value.String()
+	}
+	log.Println("store path: ", storepath)
+	// replace the the base name of the config file with the appservice prefix
+	dbPath := filepath.Join(filepath.Dir(storepath) + "/" + b.GetString("ApsPrefix") + "_" + "appservice.db")
 	err = b.DbStore.NewDbConnection("sqlite3", dbPath)
 	if err != nil {
 		return err
