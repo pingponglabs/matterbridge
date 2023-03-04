@@ -639,12 +639,7 @@ func (b *AppServMatrix) HandleActionCommand(msg config.Message) {
 var once sync.Once
 
 func (b *AppServMatrix) Send(msg config.Message) (string, error) {
-	once.Do(func() {
-		if b.RemoteProtocol == "" {
-			b.DbStore.SetRemoteProtocol(b.GetString("ApsPrefix"), msg.Protocol)
-			b.RemoteProtocol = msg.Protocol
-		}
-	})
+
 	if msg.Protocol == "api" {
 		if msg.ActionCommand != "imessage" {
 			go b.controllAction(msg)
@@ -653,7 +648,12 @@ func (b *AppServMatrix) Send(msg config.Message) (string, error) {
 			msg.Protocol = "imessage"
 		}
 	}
-
+	once.Do(func() {
+		if b.RemoteProtocol == "" {
+			b.DbStore.SetRemoteProtocol(b.GetString("ApsPrefix"), msg.Protocol)
+			b.RemoteProtocol = msg.Protocol
+		}
+	})
 	b.Log.Debugf("=> Receiving %#v", msg)
 	switch msg.Protocol {
 
