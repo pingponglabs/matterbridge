@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"flag"
 	"io"
-	"log"
 	"net/http"
 	"path/filepath"
 	"time"
@@ -163,16 +162,16 @@ func (b *AppServMatrix) Connect() error {
 		return err
 	}
 	go func() {
-		log.Fatal(http.ListenAndServe(":"+b.GetString("Port"), mx))
+		b.Log.Fatal(http.ListenAndServe(":"+b.GetString("Port"), mx))
 	}()
 	storePathFlag := flag.Lookup("conf")
 	storepath := ""
 	if storePathFlag == nil {
-		log.Println("conf path flag not defined")
+		b.Log.Debug("conf path flag not defined")
 	} else {
 		storepath = storePathFlag.Value.String()
 	}
-	log.Println("store path: ", storepath)
+	b.Log.Info("store path: ", storepath)
 	// replace the the base name of the config file with the appservice prefix
 	dbPath := filepath.Join(filepath.Dir(storepath) + "/" + b.GetString("ApsPrefix") + "_" + "appservice.db")
 	err = b.DbStore.NewDbConnection("sqlite3", dbPath)
@@ -210,20 +209,19 @@ func (b *AppServMatrix) handleTransaction(w http.ResponseWriter, r *http.Request
 	vars := mux.Vars(r)
 	tx := vars["txnId"]
 
-	log.Println(tx)
+	b.Log.Debug("appservice Transaction ID: ", tx)
 	tok := vars["token"]
-	log.Println(tok)
+	b.Log.Debug("appserviceToken: ", tok)
 
 	postBody, err := io.ReadAll(r.Body)
 	if err != nil {
-		log.Println(err)
+		b.Log.Errorf("Error reading appservice event: %v", err)
 		return
 	}
 	var appsEvents AppEvents
 	err = json.Unmarshal(postBody, &appsEvents)
-	log.Println(string(postBody))
 	if err != nil {
-		log.Println(err)
+		b.Log.Errorf("Error unmarshalling appservice event: %v", err)
 		return
 	}
 	for _, ev := range appsEvents.Events {
@@ -233,7 +231,6 @@ func (b *AppServMatrix) handleTransaction(w http.ResponseWriter, r *http.Request
 }
 
 func (b *AppServMatrix) handleAppServEvent(event *matrix.Event) {
-	b.Log.Println(event)
 	if event.Type == "m.room.member" {
 		if val, ok := event.Content["membership"]; ok {
 			if invite, ok := val.(string); ok && invite == "invite" {
@@ -241,13 +238,13 @@ func (b *AppServMatrix) handleAppServEvent(event *matrix.Event) {
 					if isDirect, ok := valDirect.(bool); ok && isDirect {
 						err := b.handleDirectInvites(*event.StateKey, event.RoomID, event.Sender)
 						if err != nil {
-							b.Log.Debug(err)
+							b.Log.Debugf("Error handling direct invite: %v", err)
 						}
 					}
 				} else {
 					err := b.handleInvites(*event.StateKey, event.RoomID)
 					if err != nil {
-						b.Log.Debug(err)
+						b.Log.Debugf("Error handling invite: %v", err)
 					}
 				}
 			}
@@ -283,7 +280,7 @@ func (b *AppServMatrix) handleDirectInvites(mtxUserId, roomId, Sender string) er
 	}
 	err := mc.SetDisplayName(userInfo.Username + " ( " + b.RemoteProtocol + " )")
 	if err != nil {
-		log.Println(err)
+		b.Log.Errorf("error setting display name for user %s: %v", mtxUserId, err)
 	}
 	_, err = mc.JoinRoom(roomId, "", nil)
 	if err != nil {
@@ -301,12 +298,11 @@ func (b *AppServMatrix) handleDirectInvites(mtxUserId, roomId, Sender string) er
 		RemoteID:     userInfo.UserID,
 	})
 	b.setRoomMap(roomId, channelName)
-	// b.saveState()
 	return nil
 
 }
 func (b *AppServMatrix) handleInvites(mtxID, roomId string) error {
-	b.Log.Printf("handling invites for the user %s on room %s", mtxID, roomId)
+	b.Log.Debugf("handling invites for the user %s on room %s", mtxID, roomId)
 	if mtxID == "" {
 		_, err := b.apsCli.JoinRoom(roomId, "", nil)
 		if err != nil {
@@ -349,7 +345,7 @@ func (b *AppServMatrix) UpdateVirtualUserJoinedStatus(mtxID, roomId string, join
 	err := b.DbStore.updateUserJoinedStatus(userInfo.MatrixID, channelInfo.MatrixRoomID, joined)
 
 	if err != nil {
-		b.Log.Error(err)
+		b.Log.Errorf("error updating joined status for user %s: %v", mtxID, err)
 	}
 
 }
@@ -405,7 +401,7 @@ func (b *AppServMatrix) handleChannelInfoEvent(channelName, channelID string, me
 
 		roomId, err := b.createRoom(channelName, []string{b.GetString("MainUser")}, false)
 		if err != nil {
-			log.Println(fmt.Errorf("failed to create room %s : %w", channelName, err))
+			b.Log.Errorf("failed to create room %s : %w", channelName, err)
 			return
 		}
 		b.sendRoomAvatarEvent(roomId)
@@ -427,7 +423,7 @@ func (b *AppServMatrix) InviteUsersLoop(channelID string) {
 
 	members, err := b.DbStore.getChannelMembersState(channelID)
 	if err != nil {
-		b.Log.Error(err)
+		b.Log.Errorf("error getting channel members state for channel %s: %v", channelID, err)
 		return
 	}
 	for _, v := range members {
@@ -443,7 +439,7 @@ func (b *AppServMatrix) InviteUsersLoop(channelID string) {
 				if respErr.RespError.ErrCode == "M_FORBIDDEN" && respErr.RespError.Err == "User is already joined to room" {
 					b.UpdateVirtualUserJoinedStatus(memberInfo.MatrixID, roomInfo.MatrixRoomID, true)
 				} else {
-					b.Log.Error(err)
+					b.Log.Errorf("error inviting user %s to room %s: %v", memberInfo.MatrixID, roomInfo.MatrixRoomID, err)
 				}
 
 			}
@@ -456,7 +452,7 @@ func (b *AppServMatrix) registerUsersList(users map[string]string) {
 	for k, v := range users {
 		memberID, err := b.createVirtualUsers(v, k)
 		if err != nil {
-			log.Println(err)
+			b.Log.Errorf("failed to create virtual user %s : %w", v, err)
 			time.Sleep(100 * time.Millisecond)
 
 			continue
@@ -477,7 +473,7 @@ func (b *AppServMatrix) handleDirectMessages(channelName, channelID string) {
 	if !ok {
 		memberID, err := b.createVirtualUsers(channelName, channelID)
 		if err != nil {
-			log.Println(err)
+			b.Log.Errorf("failed to create virtual user %s : %w", channelName, err)
 			return
 		}
 		b.addVirtualUser(memberID)
@@ -485,18 +481,18 @@ func (b *AppServMatrix) handleDirectMessages(channelName, channelID string) {
 	}
 	mtxInfo, ok := b.getVirtualUserInfo(channelID)
 	if !ok {
-		log.Println(fmt.Errorf("failed to get virtual user info %s ", channelName))
+		b.Log.Errorf("failed to get virtual user info %s ", channelName)
 		return
 	}
 
 	mc, errmx := b.newVirtualUserMtxClient(mtxInfo.MatrixID)
 	if errmx != nil {
-		log.Println(fmt.Errorf("failed to create virtual user client %s ", channelName))
+		b.Log.Errorf("failed to create virtual user client %s ", channelName)
 	}
 	displayName := ""
 	displayNameReq, err := mc.GetOwnDisplayName()
 	if err != nil {
-		log.Println(fmt.Errorf("failed to get display name %s ", channelName))
+		b.Log.Errorf("failed to get display name %s ", channelName)
 	} else {
 		displayName = displayNameReq.DisplayName
 	}
@@ -511,7 +507,7 @@ func (b *AppServMatrix) handleDirectMessages(channelName, channelID string) {
 	})
 	time.Sleep(2 * time.Second)
 	if err != nil {
-		log.Println(fmt.Errorf("failed to  create direct room : %w", err))
+		b.Log.Errorf("failed to  create direct room : %w", err)
 		return
 	}
 	b.AddNewChannel(channelName, resp.RoomID, channelID, true)
@@ -528,7 +524,7 @@ func (b *AppServMatrix) handleJoinUsers(channel string, users map[string]string)
 		if !ok {
 			memberID, err := b.createVirtualUsers(v, k)
 			if err != nil {
-				log.Println(err)
+				b.Log.Errorf("failed to create virtual user %s : %w", v, err)
 				return
 			}
 			b.addVirtualUser(memberID)
@@ -718,7 +714,6 @@ func (b *AppServMatrix) SendMtx(msg config.Message) (string, error) {
 	}
 	mc, errmtx := b.newVirtualUserMtxClient(mtxInfo.MtxID)
 	if errmtx != nil {
-		b.Log.Debug(errmtx)
 		mc, errmtx = matrix.NewClient(b.GetString("Server"), string(b.apsCli.UserID), b.apsCli.AccessToken)
 		if errmtx != nil {
 			return "", errmtx
@@ -957,7 +952,7 @@ func (b *AppServMatrix) handlematrix() {
 				return
 			}
 			if err := b.mc.Sync(); err != nil {
-				b.Log.Println("Sync() returned ", err)
+				b.Log.Errorf("Sync() returned ", err)
 			}
 		}
 	}()
@@ -1098,7 +1093,6 @@ func (b *AppServMatrix) handleEvent(ev *matrix.Event) {
 			ev.Content["formatted_body"], ev.Content)
 
 	}
-	log.Println(htmlText)
 	rmsg.Text, rmsg.Mentions = b.outcomingMention(b.RemoteProtocol, rmsg.Text, htmlText)
 
 	if rmsg.Channel == b.GetString("ApsPrefix")+"appservice_control" {
@@ -1219,10 +1213,9 @@ func (b *AppServMatrix) handleUploadFile(msg *config.Message, channel string, fi
 	}
 	mc, errmtx := b.newVirtualUserMtxClient(mtxInfo.MtxID)
 	if errmtx != nil {
-		b.Log.Debug(errmtx)
 		mc, errmtx = matrix.NewClient(b.GetString("Server"), string(b.apsCli.UserID), b.apsCli.AccessToken)
 		if errmtx != nil {
-			b.Log.Debug(errmtx)
+			b.Log.Errorf("failed to create  new matrix client: %s", errmtx)
 			return
 		}
 	}

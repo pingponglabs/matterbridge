@@ -3,7 +3,6 @@ package bappservice
 import (
 	"errors"
 	"fmt"
-	"log"
 	"regexp"
 	"strings"
 
@@ -30,11 +29,12 @@ func (b *AppServMatrix) createVirtualUsers(member, remoteID string) (MemberInfo,
 	}
 	mc, err := matrix.NewClient(b.GetString("Server"), string(resp.UserID), resp.AccessToken)
 	if err != nil {
-		log.Println(err)
-	}
-	err = mc.SetDisplayName(member)
-	if err != nil {
-		log.Println(err)
+		b.Log.Errorf("Error creating matrix client: %v", err)
+	} else {
+		err = mc.SetDisplayName(member)
+		if err != nil {
+			b.Log.Errorf("Error setting display name for user %s: %v", member, err)
+		}
 	}
 	return MemberInfo{
 		Username:    member,

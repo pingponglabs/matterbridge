@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/http"
 	"os"
 	"strconv"
@@ -47,7 +46,6 @@ type twitterUser struct {
 	ProfileImageURLHTTPS string `json:"profile_image_url_https"`
 }
 
-
 func New(cfg *bridge.Config) bridge.Bridger {
 
 	b := &Btwitter{Config: cfg}
@@ -61,7 +59,7 @@ func New(cfg *bridge.Config) bridge.Bridger {
 func (b *Btwitter) Connect() error {
 	err := godotenv.Load()
 	if err != nil {
-		log.Fatal("Error loading .env file")
+		b.Log.Fatal("Error loading .env file")
 	}
 	consumerKey := os.Getenv("TWITTER_KEY")
 	consumerSecret := os.Getenv("TWITTER_SECRET")
@@ -122,7 +120,7 @@ func (b *Btwitter) HandleMediaUpload(msg *config.Message) error {
 			if err != nil {
 				return err
 			}
-			b.Log.Debug(respSendEvent)
+			b.Log.Debugf("respSendEvent: %#v", respSendEvent)
 		}
 	}
 	return nil
@@ -132,7 +130,7 @@ func (b *Btwitter) SendText(msg *config.Message) error {
 	if err != nil {
 		return err
 	}
-	b.Log.Debug(respSendEvent)
+	b.Log.Debugf("SetDmEvent response: %#v", respSendEvent)
 	return nil
 }
 
@@ -168,7 +166,8 @@ func (b *Btwitter) Send(msg config.Message) (string, error) {
 func (b *Btwitter) HandleTwitterEvent(Msg config.Message) {
 	time.Sleep(50 * time.Millisecond)
 	if Msg.Extra == nil {
-		log.Println(fmt.Errorf("empty twitter events data"))
+		b.Log.Debug("empty twitter events data")
+		return
 	}
 	if events, ok := Msg.Extra["twitter-event"]; ok {
 
@@ -177,12 +176,12 @@ func (b *Btwitter) HandleTwitterEvent(Msg config.Message) {
 			var event webhookEvent
 			bb, err := json.Marshal(v)
 			if err != nil {
-				log.Println(err)
+				b.Log.Errorf("error while marshalling twitter event: %s", err)
 				continue
 			}
 			err = json.Unmarshal(bb, &event)
 			if err != nil {
-				log.Println(err)
+				b.Log.Errorf("error while unmarshalling twitter event: %s", err)
 				continue
 			}
 			b.RegisterParticipentInfo(event.Users)
@@ -278,7 +277,7 @@ func (b *Btwitter) handleSyncUpdatesTest(eventMsg twitter.DirectMessageEvent) {
 					if eventMsg.Message.Data.Attachment.Media.MediaURL != "" {
 						err = b.HandleSendAttachment(&rmsg, eventMsg.Message.SenderID, eventMsg.Message.Data.Attachment.Media.MediaURL)
 						if err != nil {
-							b.Log.Println(err)
+							b.Log.Errorf("error while handling media upload: %s", err)
 						}
 					}
 				}
@@ -339,7 +338,7 @@ func (b *Btwitter) handleDmEvents(eventMsg twitter.DirectMessageEvent) {
 						extraRmsg.Text = ""
 						err := b.HandleSendAttachment(&extraRmsg, eventMsg.Message.SenderID, eventMsg.Message.Data.Attachment.Media.MediaURL)
 						if err != nil {
-							b.Log.Println(err)
+							b.Log.Errorf("Error in handleDmEvents: %s", err)
 						}
 						b.Remote <- extraRmsg
 					}

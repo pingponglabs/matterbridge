@@ -3,7 +3,6 @@ package bfacebookbusiness
 import (
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/http"
 	"strings"
 	"sync"
@@ -149,8 +148,6 @@ func (b *BfacebookBusiness) InitUsers(convsInfo []ConversationInfo) {
 	}
 }
 
-
-
 func (b *BfacebookBusiness) Disconnect() error {
 	return nil
 }
@@ -199,7 +196,7 @@ func (b *BfacebookBusiness) Send(msg config.Message) (string, error) {
 		for _, param := range sendparams {
 			msgID, err := b.SendMessage(accountInfo, param)
 			if err != nil {
-				log.Println(err)
+				b.Log.Errorf("Error sending message: %s", err)
 				SendErr = err
 				continue
 			}
@@ -215,7 +212,8 @@ func (b *BfacebookBusiness) Send(msg config.Message) (string, error) {
 func (b *BfacebookBusiness) HandleFacebookEvent(Msg config.Message) {
 	time.Sleep(50 * time.Millisecond)
 	if Msg.Extra == nil {
-		log.Println(fmt.Errorf("empty facebook events data"))
+		b.Log.Debug("empty facebook events data")
+		return
 	}
 	events, ok := Msg.Extra["facebook-event"]
 	if !ok {
@@ -225,12 +223,12 @@ func (b *BfacebookBusiness) HandleFacebookEvent(Msg config.Message) {
 		var event event
 		ev, err := json.Marshal(v)
 		if err != nil {
-			log.Println(err)
+			b.Log.Errorf("Error marshaling facebook event: %s", err)
 			continue
 		}
 		err = json.Unmarshal(ev, &event)
 		if err != nil {
-			log.Println(err)
+			b.Log.Errorf("Error unmarshaling facebook event: %s", err)
 			continue
 		}
 		var platform string
@@ -258,7 +256,7 @@ func (b *BfacebookBusiness) HandleFacebookEvent(Msg config.Message) {
 				}
 				senderInfo, err := b.RegisterParticipentInfo(entry.ID, msgEvent.Sender.ID, event.Object)
 				if err != nil {
-					b.Log.Errorf(err.Error())
+					b.Log.Errorf("Error registering participent info: %s", err)
 					continue
 				}
 
@@ -342,7 +340,7 @@ func (b *BfacebookBusiness) HandleMediaEvent(rmsg *config.Message, platform stri
 	for _, attachement := range msgEvent.Message.Attachments {
 		img, err := b.MediaDownload(attachement.Payload.URL)
 		if err != nil {
-			log.Println(err)
+			b.Log.Errorf("error downloading media: %s", err)
 			continue
 		}
 		var name string
@@ -364,7 +362,6 @@ func (b *BfacebookBusiness) HandleMediaEvent(rmsg *config.Message, platform stri
 
 	}
 }
-
 
 func (b *BfacebookBusiness) IsMessageDuplicate(mid string) bool {
 	b.Lock()

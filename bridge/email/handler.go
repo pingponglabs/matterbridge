@@ -5,7 +5,6 @@ import (
 	"bytes"
 	"encoding/base64"
 	"encoding/json"
-	"fmt"
 	"io"
 	"strings"
 
@@ -14,12 +13,12 @@ import (
 )
 
 func (b *Bemail) Send(msg config.Message) (string, error) {
-	b.Log.Debugf("=> Receiving %#v", msg)
 	switch msg.Event {
 	case "email-event":
 		go b.HandleEmailEvent(msg)
 		return "", nil
 	}
+	b.Log.Debugf("=> Receiving %#v", msg)
 	return b.SendSmtp(msg)
 }
 
@@ -29,7 +28,7 @@ type emailEvent struct {
 
 func (b *Bemail) HandleEmailEvent(msg config.Message) {
 	if msg.Extra == nil {
-		b.Log.Println(fmt.Errorf("empty email events data"))
+		b.Log.Debug("empty email events data")
 		return
 	}
 	events, ok := msg.Extra["email-event"]
@@ -39,26 +38,25 @@ func (b *Bemail) HandleEmailEvent(msg config.Message) {
 	for _, v := range events {
 		bf, err := json.Marshal(v)
 		if err != nil {
-			b.Log.Println(fmt.Errorf("invalid email events data"))
+			b.Log.Debug("failed to marshal email events data")
 			continue
 		}
 
 		emailEvent := emailEvent{}
 		err = json.Unmarshal(bf, &emailEvent)
 		if err != nil {
-			b.Log.Println(fmt.Errorf("invalid email events data"))
+			b.Log.Debug("failed to unmarshal email events data")
 			continue
 
 		}
 
 		b64, err := base64.StdEncoding.DecodeString(emailEvent.Base64MailBody)
 		if err != nil {
-			b.Log.Println(fmt.Errorf("failed to  decode email events base64MailBody data"))
+			b.Log.Debug("failed to  decode email events base64MailBody data")
 			continue
 		}
 		reader := bufio.NewReader(bytes.NewReader(b64))
-		s, _ := reader.ReadString('\n')
-		b.Log.Println(s)
+		_, _ = reader.ReadString('\n')
 
 		// read the remaining lines
 		emailRaw, err := io.ReadAll(reader)
@@ -69,7 +67,7 @@ func (b *Bemail) HandleEmailEvent(msg config.Message) {
 		strRead := bytes.NewReader(emailRaw)
 		emailContent, err := parsemail.Parse(strRead)
 		if err != nil {
-			b.Log.Infof("parse email body failed : %s", err)
+			b.Log.Errorf("parse email body failed : %s", err)
 			return
 
 		}
@@ -78,7 +76,7 @@ func (b *Bemail) HandleEmailEvent(msg config.Message) {
 		receiverAddress := getStringBetween(emailContent.Header.Get("To"), "<", ">")
 
 		if receiverAddress != b.AccountImapAddress {
-			b.Log.Infof("email receiver address is not match : %s", receiverAddress)
+			b.Log.Debugf("email receiver address is not match : %s", receiverAddress)
 			return
 		}
 		msg := config.Message{

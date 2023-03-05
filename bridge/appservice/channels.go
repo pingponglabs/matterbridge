@@ -2,7 +2,6 @@ package bappservice
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -40,7 +39,6 @@ func (b *AppServMatrix) initControlRoom() {
 		IsDirect:     true,
 		RemoteID:     controlRoom,
 	})
-
 
 }
 func (b *AppServMatrix) sendRoomAvatarEvent(roomId string) error {
@@ -160,7 +158,7 @@ func (b *AppServMatrix) inviteToRoom(roomId string, invites []string) error {
 			UserID: v,
 		})
 		if err != nil {
-			log.Println(err)
+
 			return err
 		}
 	}
@@ -173,7 +171,6 @@ func (b *AppServMatrix) inviteUserToRoom(roomId string, inviteId string) error {
 		UserID: id.UserID(inviteId),
 	})
 	if err != nil {
-		log.Println(err)
 		return err
 	}
 	return nil
@@ -181,7 +178,7 @@ func (b *AppServMatrix) inviteUserToRoom(roomId string, inviteId string) error {
 func (b *AppServMatrix) RemoveUserFromRoom(reason string, mtxID, alias string) {
 	userId, ok := b.getVirtualUserInfo(mtxID)
 	if !ok {
-		log.Println(fmt.Errorf("user %s not exist on appservice database", mtxID))
+		b.Log.Errorf("user %s not exist on appservice database", mtxID)
 		return
 	}
 
@@ -190,7 +187,7 @@ func (b *AppServMatrix) RemoveUserFromRoom(reason string, mtxID, alias string) {
 		UserID: id.UserID(userId.MatrixID),
 	})
 	if err != nil {
-		log.Println(err)
+		b.Log.Errorf("failed to kick user", err)
 	}
 }
 

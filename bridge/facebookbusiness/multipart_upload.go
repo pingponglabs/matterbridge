@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
 	"mime/multipart"
 	"net/http"
 	"net/textproto"
@@ -114,7 +113,6 @@ func (b *BfacebookBusiness) MediaUpload(accountInfo *Account, r io.Reader, name,
 	if err != nil {
 		return MediaUploadResp{}, err
 	}
-	log.Println(string(bb))
 	uploadResp := MediaUploadResp{}
 	err = json.Unmarshal(bb, &uploadResp)
 	if err != nil {
@@ -126,7 +124,7 @@ func (b *BfacebookBusiness) MediaUpload(accountInfo *Account, r io.Reader, name,
 
 	return uploadResp, nil
 }
-func (b *BfacebookBusiness) HandleInstaMediaUpload(accountInfo Account,msg *config.Message, recipientID string) (string, error) {
+func (b *BfacebookBusiness) HandleInstaMediaUpload(accountInfo Account, msg *config.Message, recipientID string) (string, error) {
 	if msg.Extra == nil {
 		return "", fmt.Errorf("nil extra map")
 	}
@@ -135,19 +133,18 @@ func (b *BfacebookBusiness) HandleInstaMediaUpload(accountInfo Account,msg *conf
 		if fi, ok := f.(config.FileInfo); ok {
 			content := bytes.NewReader(*fi.Data)
 
-			resp, err := b.InstaMediaUpload(accountInfo,content, fi.Name, recipientID, fi.URL)
+			resp, err := b.InstaMediaUpload(accountInfo, content, fi.Name, recipientID, fi.URL)
 			if err != nil {
 				return resp, err
 			}
 
-			b.Log.Debug(resp)
 			return resp, nil
 		}
 	}
 	return "", nil
 }
 
-func (b *BfacebookBusiness) InstaMediaUpload(accountInfo Account,r io.Reader, name, recipientID, url string) (string, error) {
+func (b *BfacebookBusiness) InstaMediaUpload(accountInfo Account, r io.Reader, name, recipientID, url string) (string, error) {
 	mediaExt := ""
 	mediaType := ""
 	if sl := strings.Split(name, "."); len(sl) > 1 {
@@ -158,7 +155,7 @@ func (b *BfacebookBusiness) InstaMediaUpload(accountInfo Account,r io.Reader, na
 	case "jpg", "png", "jpeg":
 		mediaType = "image"
 	}
-	fbUrl := fmt.Sprintf("https://graph.facebook.com/v14.0/%s/messages",accountInfo.pageID)
+	fbUrl := fmt.Sprintf("https://graph.facebook.com/v14.0/%s/messages", accountInfo.pageID)
 	RecipientParams := &SendRecipientJson{ID: recipientID}
 	SendImageParam := &SendMessageJson{
 		Attachment: &Attachment{
@@ -207,7 +204,6 @@ func (b *BfacebookBusiness) InstaMediaUpload(accountInfo Account,r io.Reader, na
 			return msgId, nil
 		}
 	}
-	log.Println(res)
 	return "", fmt.Errorf("empty facebook send messageId")
 }
 

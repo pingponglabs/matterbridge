@@ -2,7 +2,6 @@ package bemail
 
 import (
 	"io"
-	"log"
 	"mime"
 	"os"
 	"path/filepath"
@@ -80,7 +79,7 @@ func (b *Bemail) HandleEmailContent(msg config.Message, body map[*imap.BodySecti
 	for _, bodyPart := range body {
 		emailContent, err := parsemail.Parse(bodyPart)
 		if err != nil {
-			b.Log.Infof("parse email body failed : %s", err)
+			b.Log.Errorf("parse email body failed : %s", err)
 			return
 		}
 		b.HandleEmailParsed(msg, emailContent)
@@ -103,7 +102,7 @@ func (b *Bemail) HandleEmailParsed(msg config.Message, emailContent parsemail.Em
 			if attach.ContentType == "text/plain" {
 				txt, err := io.ReadAll(attach.Data)
 				if err != nil {
-					b.Log.Println(err)
+					b.Log.Errorf("read attachment failed : %s", err)
 					return
 				}
 				b.HandleEmailText(msg, string(txt))
@@ -114,7 +113,7 @@ func (b *Bemail) HandleEmailParsed(msg config.Message, emailContent parsemail.Em
 		for _, embed := range emailContent.EmbeddedFiles {
 			ctype, params, err := mime.ParseMediaType(embed.ContentType)
 			if err != nil {
-				b.Log.Println(err)
+				b.Log.Errorf("parse email content type failed : %s", err)
 				return
 			}
 			fileName := params["name"]
@@ -192,7 +191,7 @@ func (b *Bemail) HandleIncomingAttach(rmsg config.Message, r io.Reader, ctyp, fi
 	}
 	content, err := io.ReadAll(r)
 	if err != nil {
-		b.Log.Errorf(err.Error())
+		b.Log.Errorf("read attachment failed : %s", err)
 		return
 	}
 	rmsg.Extra = make(map[string][]interface{})
@@ -223,14 +222,14 @@ func (b *Bemail) Connect() error {
 }
 
 func (b *Bemail) ConnectImapFetch() error {
-	b.Log.Println("Connecting to the IMAP server...")
+	b.Log.Debug("Connecting to the IMAP server...")
 
 	// Connect to  imap server
 	c, err := client.DialTLS(b.GetString("IMAP"), nil)
 	if err != nil {
 		return err
 	}
-	b.Log.Println("Connected to IMAP server")
+	b.Log.Debug("Connected to IMAP server")
 
 	// Login
 	if err := c.Login(b.GetString("username"), b.GetString("password")); err != nil {
@@ -238,7 +237,7 @@ func (b *Bemail) ConnectImapFetch() error {
 	}
 
 	// TODO add logout
-	b.Log.Println("Logged in")
+	b.Log.Debug("Logged in")
 
 	// List mailboxes
 	mailboxes := make(chan *imap.MailboxInfo, 10)
@@ -248,10 +247,10 @@ func (b *Bemail) ConnectImapFetch() error {
 	}
 	b.Client = c
 
-	log.Println("Mailboxes:")
+	b.Log.Debug("Mailboxes:")
 	for m := range mailboxes {
 		b.Inboxes = append(b.Inboxes, m)
-		b.Log.Println("* " + m.Name)
+		b.Log.Debug("* " + m.Name)
 	}
 
 	go b.SyncEmailInbox()
@@ -265,7 +264,7 @@ func (b *Bemail) SyncEmailInbox() {
 		_, err := b.Client.Select("INBOX", false)
 		if err != nil {
 
-			b.Log.Infof("email bridge : select inbox  failed with error %v\n", err)
+			b.Log.Errorf("email bridge : select inbox  failed with error %v\n", err)
 			go b.ConnectRetry()
 			return
 		}
@@ -276,7 +275,7 @@ func (b *Bemail) SyncEmailInbox() {
 		}
 		ser, err := b.Client.Search(cr)
 		if err != nil {
-			b.Log.Println(err)
+			b.Log.Errorf("email bridge : search inbox  failed with error %v\n", err)
 			continue
 		}
 		seqset.AddNum(ser...)
@@ -291,14 +290,14 @@ func (b *Bemail) SyncEmailInbox() {
 		for msg := range messages {
 			if !b.IsProcessed(msg.Envelope.MessageId) {
 				if len(msg.Envelope.From) > 0 {
-					b.Log.Infof("email from %s with subject %q sent on %s \n", msg.Envelope.From[0].MailboxName, msg.Envelope.Subject, msg.Envelope.Date)
+					b.Log.Debug("email from %s with subject %q sent on %s \n", msg.Envelope.From[0].MailboxName, msg.Envelope.Subject, msg.Envelope.Date)
 				}
 				b.ProcessedEmailMsgID = append(b.ProcessedEmailMsgID, msg.Envelope.MessageId)
 				go b.HandleIncomingEmail(msg)
 			}
 		}
 		if err := <-errFetch; err != nil {
-			b.Log.Println(err)
+			b.Log.Errorf("email bridge : fetch inbox  failed with error %v\n", err)
 		}
 	}
 }

@@ -190,11 +190,10 @@ func GetMessages(token, pageId, platform, userID string) (MessagesResp, error) {
 	if err != nil {
 		return MessagesResp{}, err
 	}
-	log.Println(res)
 	return a, nil
 }
 
-func (b *BfacebookBusiness) PrepareSendParams(accountInfo *Account,msg config.Message, participant SenderInfo) []sendParamsRaw {
+func (b *BfacebookBusiness) PrepareSendParams(accountInfo *Account, msg config.Message, participant SenderInfo) []sendParamsRaw {
 	sendParams := []sendParamsRaw{}
 	recipientParam := SendRecipientJson{ID: participant.ID}
 
@@ -217,9 +216,9 @@ func (b *BfacebookBusiness) PrepareSendParams(accountInfo *Account,msg config.Me
 
 			switch participant.Platform {
 			case "facebook":
-				resp, err := b.MediaUpload(accountInfo ,content, fi.Name, typ)
+				resp, err := b.MediaUpload(accountInfo, content, fi.Name, typ)
 				if err != nil {
-					log.Println(err)
+					b.Log.Errorf("Failed to upload media: %v", err)
 					continue
 				}
 				sendMessageParam := SendMessageJson{
@@ -269,7 +268,7 @@ func GetMediaTypeInfo(name string) (string, string) {
 	return mediaExt, typ
 }
 
-func (b *BfacebookBusiness) SendMessage(accountInfo *Account,params sendParamsRaw) (string, error) {
+func (b *BfacebookBusiness) SendMessage(accountInfo *Account, params sendParamsRaw) (string, error) {
 
 	recpt, err := json.Marshal(params.recipientID)
 	if err != nil {
@@ -291,10 +290,9 @@ func (b *BfacebookBusiness) SendMessage(accountInfo *Account,params sendParamsRa
 			return msgId, nil
 		}
 	}
-	log.Println(res)
 	return "", fmt.Errorf("empty facebook send messageId")
 }
-func (b *BfacebookBusiness) SendInstagramMediaMessage(accountInfo Account,name, recipientID, url string) (string, error) {
+func (b *BfacebookBusiness) SendInstagramMediaMessage(accountInfo Account, name, recipientID, url string) (string, error) {
 	mediaExt := ""
 	mediaType := ""
 	if sl := strings.Split(name, "."); len(sl) > 1 {
@@ -336,15 +334,14 @@ func (b *BfacebookBusiness) SendInstagramMediaMessage(accountInfo Account,name, 
 			return msgId, nil
 		}
 	}
-	log.Println(res)
 	return "", fmt.Errorf("empty facebook send messageId")
 }
 
-func parseCreatedTime(stime string) time.Time {
+func parseCreatedTime(stime string) (time.Time, error) {
 	layout := "2006-01-02T15:04:05+0000"
 	t, err := time.Parse(layout, stime)
 	if err != nil {
-		log.Println(err)
+		return time.Time{}, err
 	}
-	return t
+	return t, nil
 }
