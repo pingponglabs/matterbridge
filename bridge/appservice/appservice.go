@@ -1056,6 +1056,9 @@ func (b *AppServMatrix) handleEvent(ev *matrix.Event) {
 		//	Avatar:   b.getAvatarURL(ev.Sender),
 	}
 	rmsg.TargetPlatform = b.RemoteProtocol
+	if b.RemoteProtocol == "imessage" {
+		b.RemoteProtocol = "api"
+	}
 	if channelInfo, ok := b.getChannelInfo(channel); ok {
 		b.RLock()
 		if channelInfo.IsDirect {
