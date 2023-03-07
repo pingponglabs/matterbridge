@@ -46,6 +46,8 @@ type Message struct {
 	Timestamp time.Time `json:"timestamp"`
 	ID        string    `json:"id"`
 	Extra     map[string][]interface{}
+
+	ExtraNetworkInfo
 }
 
 func (m Message) ParentNotFound() bool {
@@ -176,6 +178,32 @@ type Protocol struct {
 	VerboseJoinPart        bool       // IRC
 	WebhookBindAddress     string     // mattermost, slack
 	WebhookURL             string     // mattermost, slack
+
+	HsToken        string // appservice
+	StorePath      string // appservice
+	MainUser       string // appservice
+	Port           string // appservice
+	AppServiceLink bool   // appservice ,others
+	UserSuffix     string // appservice
+	AvatarUrl      string // appservice
+
+	ImportProfilePath string // instagram
+	TwoFactorCode     string // instagram
+
+	Oauth1Token  string // twitter
+	Oauth1Secret string // twitter
+
+	SMTP string // email
+	IMAP string // email
+
+	SMTPUsername string // email
+	SMTPPassword string // email
+
+	IMAPUsername string // email
+	IMAPPassword string // email
+
+	IMAPFetchMode bool // email
+
 }
 
 type ChannelOptions struct {
@@ -214,23 +242,30 @@ type SameChannelGateway struct {
 }
 
 type BridgeValues struct {
-	API                map[string]Protocol
-	IRC                map[string]Protocol
-	Mattermost         map[string]Protocol
-	Matrix             map[string]Protocol
-	Slack              map[string]Protocol
-	SlackLegacy        map[string]Protocol
-	Steam              map[string]Protocol
-	Gitter             map[string]Protocol
-	XMPP               map[string]Protocol
-	Discord            map[string]Protocol
-	Telegram           map[string]Protocol
-	Rocketchat         map[string]Protocol
-	SSHChat            map[string]Protocol
-	WhatsApp           map[string]Protocol // TODO is this struct used? Search for "SlackLegacy" for example didn't return any results
-	Zulip              map[string]Protocol
-	Keybase            map[string]Protocol
-	Mumble             map[string]Protocol
+	API              map[string]Protocol
+	IRC              map[string]Protocol
+	Mattermost       map[string]Protocol
+	Matrix           map[string]Protocol
+	Slack            map[string]Protocol
+	SlackLegacy      map[string]Protocol
+	Steam            map[string]Protocol
+	Gitter           map[string]Protocol
+	XMPP             map[string]Protocol
+	Discord          map[string]Protocol
+	Telegram         map[string]Protocol
+	Rocketchat       map[string]Protocol
+	SSHChat          map[string]Protocol
+	WhatsApp         map[string]Protocol // TODO is this struct used? Search for "SlackLegacy" for example didn't return any results
+	Zulip            map[string]Protocol
+	Keybase          map[string]Protocol
+	Mumble           map[string]Protocol
+	Appservice       map[string]Protocol
+	Instagram        map[string]Protocol
+	Facebookbusiness map[string]Protocol
+
+	Twitter map[string]Protocol
+	Email   map[string]Protocol
+
 	General            Protocol
 	Tengo              Tengo
 	Gateway            []Gateway

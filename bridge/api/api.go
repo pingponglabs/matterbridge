@@ -107,6 +107,9 @@ func (b *API) JoinChannel(channel config.ChannelInfo) error {
 func (b *API) Send(msg config.Message) (string, error) {
 	b.Lock()
 	defer b.Unlock()
+	if  msg.TargetPlatform != "api" {
+		return "", nil
+	}
 	// ignore delete messages
 	if msg.Event == config.EventMsgDelete {
 		return "", nil

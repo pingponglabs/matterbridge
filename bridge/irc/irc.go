@@ -227,6 +227,32 @@ func (b *Birc) doSend() {
 	for msg := range b.Local {
 		<-throttle.C
 		username := msg.Username
+
+		if msg.Event == "join" {
+			b.Log.Debugf("joining channel %s", msg.Channel)
+			b.Log.Debug(b.JoinChannel(config.ChannelInfo{
+				Name: msg.Channel,
+			}))
+			continue
+		}
+		if msg.Event == "direct_msg_create" {
+			rmsg := config.Message{
+				Text:     "direct_msg_create",
+				Channel:  msg.Channel,
+				Username: username,
+				Account:  b.Account,
+				Event:    "direct_msg_create",
+				Protocol: "irc",
+				Gateway:  msg.Gateway,
+			}
+			rmsg.ChannelId = msg.Channel
+			rmsg.Account = b.Account
+			rmsg.ChannelId = rmsg.Channel
+			rmsg.Text = rmsg.ChannelId
+			b.Remote <- rmsg
+
+		}
+
 		// Optional support for the proposed RELAYMSG extension, described at
 		// https://github.com/jlu5/ircv3-specifications/blob/master/extensions/relaymsg.md
 		// nolint:nestif

@@ -1,4 +1,5 @@
-package bwhatsapp
+//go:build whatsapp
+// +build whatsapppackage bwhatsapp
 
 import (
 	"encoding/gob"

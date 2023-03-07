@@ -1,4 +1,3 @@
-// +build whatsappmulti
 
 package bridgemap
 

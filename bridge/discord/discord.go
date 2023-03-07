@@ -233,6 +233,7 @@ func (b *Bdiscord) Connect() error {
 			b.nickMemberMap[member.Nick] = member
 		}
 	}
+	go b.SendChannelsAndMembers()
 	return nil
 }
 
@@ -250,7 +251,9 @@ func (b *Bdiscord) JoinChannel(channel config.ChannelInfo) error {
 
 func (b *Bdiscord) Send(msg config.Message) (string, error) {
 	b.Log.Debugf("=> Receiving %#v", msg)
-
+	if msg.Event == "direct_msg"{
+		return b.HandleDirectMessage(msg)
+	}
 	channelID := b.getChannelID(msg.Channel)
 	if channelID == "" {
 		return "", fmt.Errorf("Could not find channelID for %v", msg.Channel)
