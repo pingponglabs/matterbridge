@@ -35,9 +35,9 @@ func (b *Bwhatsapp) SendGroupsInfo(groups []*types.GroupInfo) {
 		contactsName := make(map[string]string)
 		for _, contact := range group.Participants {
 			contactNum := contact.JID.String()
-			contactName := b.getSenderName(contact.JID)
-			contacts = append(contacts, contactName)
-			contactsName[contactNum] = contactName
+			contactName := b.contacts[contact.JID]
+			contacts = append(contacts, contactName.FullName)
+			contactsName[contactNum] = contactName.FullName
 
 		}
 		b.Remote <- config.Message{
