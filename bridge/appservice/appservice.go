@@ -646,8 +646,8 @@ func (b *AppServMatrix) Send(msg config.Message) (string, error) {
 	}
 	once.Do(func() {
 		if b.RemoteProtocol == "" {
-			b.DbStore.SetRemoteProtocol(b.GetString("ApsPrefix"), msg.Protocol)
 			b.RemoteProtocol = msg.Protocol
+			b.DbStore.SetRemoteProtocol(b.GetString("ApsPrefix"), msg.Protocol)
 		}
 	})
 	b.Log.Debugf("=> Receiving %#v", msg)
