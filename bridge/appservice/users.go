@@ -76,18 +76,18 @@ func (b *AppServMatrix) addNewMembers(channel string, newMembers map[string]stri
 		return
 	}
 	for k, _ := range newMembers {
-		b.addNewMember(channel, k)
+		b.addNewMember(channel, k,false)
 	}
 
 }
-func (b *AppServMatrix) addNewMember(channel, userID string) {
-	exist, err := b.DbStore.isUserInChannel(channel, userID)
+func (b *AppServMatrix) addNewMember(channelID, userID string,joined bool) {
+	exist, err := b.DbStore.isUserInChannel(channelID, userID)
 	if err != nil {
 		b.Log.Errorf("Error getting user info from database: %v", err)
 
 	}
 	if !exist {
-		b.DbStore.setUserForChannel(channel, userID, false)
+		b.DbStore.setUserForChannel(channelID, userID, joined)
 	}
 
 }

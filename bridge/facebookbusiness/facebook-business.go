@@ -262,7 +262,7 @@ func (b *BfacebookBusiness) HandleFacebookEvent(Msg config.Message) {
 
 				configMessage := config.Message{
 					Text:     "",
-					Channel:  accountInfo.pageName + "_" + platform + "_" + senderInfo.Name,
+					Channel:  entry.ID + "__" + senderInfo.ID + "__" + platform,
 					Username: accountInfo.pageName + "_" + platform + "_" + senderInfo.Name,
 					UserID:   entry.ID + "__" + senderInfo.ID + "__" + platform,
 					Account:  b.Account,
@@ -272,7 +272,7 @@ func (b *BfacebookBusiness) HandleFacebookEvent(Msg config.Message) {
 					ExtraNetworkInfo: config.ExtraNetworkInfo{
 						ChannelUsersMember: []string{},
 						ChannelId:          entry.ID + "__" + senderInfo.ID + "__" + platform,
-						ChannelName:        senderInfo.Name,
+						ChannelName:        accountInfo.pageName + "_" + platform + "_" + senderInfo.Name,
 					},
 				}
 				if msgEvent.Message.Text != "" {

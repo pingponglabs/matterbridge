@@ -323,29 +323,27 @@ func (b *AppServMatrix) handleInvites(mtxID, roomId string) error {
 	if err != nil {
 		return err
 	}
-	b.validateInvite(roomId, userInfo.UserID)
+	channelInfo, ok := b.getChannelInfoByMtxID(roomId)
+	if !ok {
+		return fmt.Errorf("channel %s not found in the appservice database", roomId)
+	}
+
+	b.validateInvite(channelInfo.RemoteID, userInfo.UserID)
 	return nil
 
 }
-func (b *AppServMatrix) validateInvite(roomId, mtxID string) {
+func (b *AppServMatrix) validateInvite(channelID, userID string) {
 
 	// update the virtual user joined status
-	b.UpdateVirtualUserJoinedStatus(mtxID, roomId, true)
+	b.UpdateVirtualUserJoinedStatus(channelID, userID, true)
 
 }
-func (b *AppServMatrix) UpdateVirtualUserJoinedStatus(mtxID, roomId string, joined bool) {
-	channelInfo, ok := b.getChannelInfoByMtxID(roomId)
-	if !ok {
-		return
-	}
-	userInfo, ok := b.getVirtualUserFromMtxId(mtxID)
-	if !ok {
-		return
-	}
-	err := b.DbStore.updateUserJoinedStatus(userInfo.MatrixID, channelInfo.MatrixRoomID, joined)
+func (b *AppServMatrix) UpdateVirtualUserJoinedStatus(channelID, userID string, joined bool) {
+
+	err := b.DbStore.updateUserJoinedStatus(channelID, userID, joined)
 
 	if err != nil {
-		b.Log.Errorf("error updating joined status for user %s: %v", mtxID, err)
+		b.Log.Errorf("error updating joined status for user %s on channel %s failed : %v", userID, channelID, err)
 	}
 
 }
@@ -467,32 +465,32 @@ func (b *AppServMatrix) registerUsersList(users map[string]string) {
 	}
 }
 
-func (b *AppServMatrix) handleDirectMessages(channelName, channelID string) {
+func (b *AppServMatrix) handleDirectMessages(msg config.Message) {
 
-	_, ok := b.getVirtualUserInfo(channelID)
+	_, ok := b.getVirtualUserInfo(msg.UserID)
 	if !ok {
-		memberID, err := b.createVirtualUsers(channelName, channelID)
+		memberID, err := b.createVirtualUsers(msg.Username, msg.UserID)
 		if err != nil {
-			b.Log.Errorf("failed to create virtual user %s : %w", channelName, err)
+			b.Log.Errorf("failed to create virtual user %s : %w", msg.Username, err)
 			return
 		}
 		b.addVirtualUser(memberID)
 
 	}
-	mtxInfo, ok := b.getVirtualUserInfo(channelID)
+	mtxInfo, ok := b.getVirtualUserInfo(msg.UserID)
 	if !ok {
-		b.Log.Errorf("failed to get virtual user info %s ", channelName)
+		b.Log.Errorf("failed to get virtual user info %s ", msg.UserID)
 		return
 	}
 
 	mc, errmx := b.newVirtualUserMtxClient(mtxInfo.MatrixID)
 	if errmx != nil {
-		b.Log.Errorf("failed to create virtual user client %s ", channelName)
+		b.Log.Errorf("failed to create virtual user client %s ", mtxInfo.MatrixID)
 	}
 	displayName := ""
 	displayNameReq, err := mc.GetOwnDisplayName()
 	if err != nil {
-		b.Log.Errorf("failed to get display name %s ", channelName)
+		b.Log.Errorf("failed to get display name for user %s ", mtxInfo.MatrixID)
 	} else {
 		displayName = displayNameReq.DisplayName
 	}
@@ -500,7 +498,7 @@ func (b *AppServMatrix) handleDirectMessages(channelName, channelID string) {
 	resp, err := mc.CreateRoom(&matrix.ReqCreateRoom{
 
 		Name:   displayName + " ( " + b.RemoteProtocol + " )",
-		Topic:  channelName + " direct message room",
+		Topic:  msg.ChannelName + " direct message room",
 		Invite: []string{b.GetString("MainUser")},
 
 		IsDirect: true,
@@ -510,10 +508,10 @@ func (b *AppServMatrix) handleDirectMessages(channelName, channelID string) {
 		b.Log.Errorf("failed to  create direct room : %w", err)
 		return
 	}
-	b.AddNewChannel(channelName, resp.RoomID, channelID, true)
-	b.addNewMember(channelName, channelID)
+	b.AddNewChannel(msg.ChannelName, resp.RoomID, msg.ChannelId, true)
+	b.addNewMember(msg.ChannelId, msg.UserID, true)
 
-	b.setRoomMap(resp.RoomID, channelID)
+	b.setRoomMap(resp.RoomID, msg.ChannelId)
 }
 func (b *AppServMatrix) handleJoinUsers(channel string, users map[string]string) {
 	for k, v := range users {
@@ -537,7 +535,7 @@ func (b *AppServMatrix) handleJoinUsers(channel string, users map[string]string)
 		if err != nil {
 			continue
 		}
-		b.addNewMember(channel, k)
+		b.addNewMember(channel, k, false)
 	}
 
 }
@@ -663,9 +661,7 @@ func (b *AppServMatrix) Send(msg config.Message) (string, error) {
 	case "whatsapp":
 		msg.Username = strings.TrimPrefix(msg.Username, "+")
 	case "imessage":
-		msg.Username = msg.ChannelName
-		msg.UserID = msg.ChannelId
-		msg.Channel = msg.ChannelId
+
 		b.AdjustExtra(&msg)
 	}
 	if msg.Text == "new_users" {
@@ -679,10 +675,12 @@ func (b *AppServMatrix) Send(msg config.Message) (string, error) {
 	case "new_users":
 		b.remoteUsername = msg.Username
 		b.handleChannelInfoEvent(msg.ChannelName, msg.ChannelId, msg.UsersMemberId)
+		msg.Channel = msg.ChannelId
+
 		// TODO create virtual users and join channels
 	case "direct_msg":
 		if !b.isChannelExist(msg.ChannelId) {
-			b.handleDirectMessages(msg.ChannelName, msg.ChannelId)
+			b.handleDirectMessages(msg)
 		}
 		msg.Channel = msg.ChannelId
 		// TODO create virtual users and join channels

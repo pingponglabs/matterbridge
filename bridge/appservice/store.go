@@ -354,8 +354,12 @@ func (b *AppServStore) removeChannelFromUser(channelID, userID string) error {
 }
 
 // update user joined status
-func (b *AppServStore) updateUserJoinedStatus(mtxID, MatrixRoomID string, joined bool) error {
+func (b *AppServStore) updateUserJoinedStatusMTx(mtxID, MatrixRoomID string, joined bool) error {
 	_, err := b.db.Exec(`update channel_user set joined = $1 where channel_id = (select channel_id from `+ChannelTableName+` where matrix_room_id = $2) and user_id = (select remote_id from `+UserTableName+` where matrix_id = $3)`, joined, MatrixRoomID, mtxID)
+	return err
+}
+func (b *AppServStore) updateUserJoinedStatus(channelID, userID string, joined bool) error {
+	_, err := b.db.Exec(`update channel_user set joined = $1 where channel_id = $2 and user_id = $3`, joined, channelID, userID)
 	return err
 }
 

@@ -7,6 +7,6 @@ type ExtraNetworkInfo struct {
 	ChannelName        string            `json:"channel_name,omitempty"`
 	ChannelType        string            `json:"channel_type,omitempty"`
 	TargetPlatform     string            `json:"target_platform,omitempty"`
-	UsersMemberId      map[string]string `json:"users_member_is,omitempty"`
+	UsersMemberId      map[string]string `json:"users_member_id,omitempty"`
 	Mentions           map[string]string `json:"mentions,omitempty"`
 }
