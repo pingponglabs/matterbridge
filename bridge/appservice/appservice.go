@@ -497,7 +497,7 @@ func (b *AppServMatrix) handleDirectMessages(msg config.Message) {
 
 	resp, err := mc.CreateRoom(&matrix.ReqCreateRoom{
 
-		Name:   displayName + " ( " + b.RemoteProtocol + " )",
+		Name:   displayName + " ( " + msg.Protocol + " )",
 		Topic:  msg.ChannelName + " direct message room",
 		Invite: []string{b.GetString("MainUser")},
 
