@@ -82,6 +82,7 @@ func New(cfg *bridge.Config) bridge.Bridger {
 	e.GET("/api/stream", b.handleStream)
 	e.GET("/api/websocket", b.handleWebsocket)
 	e.POST("/api/message", b.handlePostMessage)
+	e.GET("/api/custom-stream", b.handleCustomStream)
 	go func() {
 		if b.GetString("BindAddress") == "" {
 			b.Log.Fatalf("No BindAddress configured.")
@@ -107,7 +108,7 @@ func (b *API) JoinChannel(channel config.ChannelInfo) error {
 func (b *API) Send(msg config.Message) (string, error) {
 	b.Lock()
 	defer b.Unlock()
-	if  msg.TargetPlatform != "api" {
+	if msg.TargetPlatform != "api" {
 		return "", nil
 	}
 	// ignore delete messages
