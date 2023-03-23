@@ -96,6 +96,8 @@ func (b *Bwhatsapp) handleTextMessage(messageInfo types.MessageInfo, msg *proto.
 	}
 	if rmsg.Channel == rmsg.UserID && !b.IsSetupDM(rmsg.UserID) {
 		b.HandleDirectMessage(&rmsg)
+	} else {
+		b.HandleGroupMessage(&rmsg, channel)
 	}
 
 	if avatarURL, exists := b.userAvatars[senderJID.String()]; exists {
@@ -131,6 +133,9 @@ func (b *Bwhatsapp) handleImageMessage(msg *events.Message) {
 	}
 	if rmsg.Channel == rmsg.UserID && !b.IsSetupDM(rmsg.UserID) {
 		b.HandleDirectMessage(&rmsg)
+	} else {
+
+		b.HandleGroupMessage(&rmsg, msg.Info.Chat)
 	}
 	if avatarURL, exists := b.userAvatars[senderJID.String()]; exists {
 		rmsg.Avatar = avatarURL
@@ -196,6 +201,8 @@ func (b *Bwhatsapp) handleVideoMessage(msg *events.Message) {
 	}
 	if rmsg.Channel == rmsg.UserID && !b.IsSetupDM(rmsg.UserID) {
 		b.HandleDirectMessage(&rmsg)
+	} else {
+		b.HandleGroupMessage(&rmsg, msg.Info.Chat)
 	}
 	if avatarURL, exists := b.userAvatars[senderJID.String()]; exists {
 		rmsg.Avatar = avatarURL
@@ -255,6 +262,8 @@ func (b *Bwhatsapp) handleAudioMessage(msg *events.Message) {
 	}
 	if rmsg.Channel == rmsg.UserID && !b.IsSetupDM(rmsg.UserID) {
 		b.HandleDirectMessage(&rmsg)
+	} else {
+		b.HandleGroupMessage(&rmsg, msg.Info.Chat)
 	}
 	if avatarURL, exists := b.userAvatars[senderJID.String()]; exists {
 		rmsg.Avatar = avatarURL
@@ -314,6 +323,8 @@ func (b *Bwhatsapp) handleDocumentMessage(msg *events.Message) {
 	}
 	if rmsg.Channel == rmsg.UserID && !b.IsSetupDM(rmsg.UserID) {
 		b.HandleDirectMessage(&rmsg)
+	} else {
+		b.HandleGroupMessage(&rmsg, msg.Info.Chat)
 	}
 	if avatarURL, exists := b.userAvatars[senderJID.String()]; exists {
 		rmsg.Avatar = avatarURL

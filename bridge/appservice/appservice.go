@@ -20,7 +20,6 @@ import (
 	// import sqlite3 driver
 	_ "github.com/mattn/go-sqlite3"
 
-	"maunium.net/go/mautrix"
 	gomatrix "maunium.net/go/mautrix"
 	id "maunium.net/go/mautrix/id"
 
@@ -84,10 +83,7 @@ type ReplyMessage struct {
 	RelatedTo InReplyToRelation `json:"m.relates_to"`
 	matrix.TextMessage
 }
-type memberChan struct {
-	member  MemberInfo
-	channel string
-}
+
 type UserMapInfo struct {
 	MtxID    string
 	Username string
@@ -102,7 +98,6 @@ type AppServMatrix struct {
 	remoteUsername string
 	virtualUsers   map[string]MemberInfo
 	UsersMap       map[string]UserMapInfo
-	memberChan     chan memberChan
 	RemoteProtocol string
 	AvatarUrl      string
 	rateMutex      sync.RWMutex
@@ -129,15 +124,6 @@ type MemberInfo struct {
 	MatrixID    string `json:"matrix_id,omitempty"`
 	UserID      string `json:"user_id,omitempty"`
 	Registred   bool   `json:"registred,omitempty"`
-}
-
-type appserviceData struct {
-	RoomsInfo    map[string]*ChannelInfo `json:"rooms_info,omitempty"`
-	VirtualUsers map[string]MemberInfo   `json:"virtual_users,omitempty"`
-	UsersMap     map[string]UserMapInfo  `json:"users_map,omitempty"`
-
-	RemoteProtocol string `json:"remote_protocol,omitempty"`
-	AvatarUrl      string `json:"avatar_url,omitempty"`
 }
 
 func New(cfg *bridge.Config) bridge.Bridger {
@@ -382,14 +368,6 @@ func (b *AppServMatrix) JoinChannel(channel config.ChannelInfo) error {
 
 }
 
-type userListState struct {
-	name      string
-	Registred bool
-	Joined    bool
-	Leaved    bool
-	NotExist  bool
-}
-
 func (b *AppServMatrix) handleChannelInfoEvent(channelName, channelID string, members map[string]string) {
 	list := b.GetNotExistUsers(members)
 	go b.registerUsersList(list)
@@ -433,7 +411,7 @@ func (b *AppServMatrix) InviteUsersLoop(channelID string) {
 				continue
 			}
 			err := b.inviteToRoom(roomInfo.MatrixRoomID, []string{memberInfo.MatrixID})
-			if respErr, ok := err.(mautrix.HTTPError); ok {
+			if respErr, ok := err.(gomatrix.HTTPError); ok {
 				if respErr.RespError.ErrCode == "M_FORBIDDEN" && respErr.RespError.Err == "User is already joined to room" {
 					b.UpdateVirtualUserJoinedStatus(memberInfo.MatrixID, roomInfo.MatrixRoomID, true)
 				} else {
@@ -619,6 +597,7 @@ func (b *AppServMatrix) handleTelegramMsg(msg *config.Message) {
 
 	}
 }
+
 func (b *AppServMatrix) HandleActionCommand(msg config.Message) {
 	switch msg.ActionCommand {
 	case "join":
@@ -659,7 +638,7 @@ func (b *AppServMatrix) Send(msg config.Message) (string, error) {
 	case "telegram":
 		b.handleTelegramMsg(&msg)
 	case "whatsapp":
-		msg.Username = strings.TrimPrefix(msg.Username, "+")
+
 	case "imessage":
 
 		b.AdjustExtra(&msg)
@@ -937,23 +916,6 @@ func (b *AppServMatrix) SendMtx(msg config.Message) (string, error) {
 	}
 
 	return resp.EventID, err
-}
-
-func (b *AppServMatrix) handlematrix() {
-	syncer := b.mc.Syncer.(*matrix.DefaultSyncer)
-	syncer.OnEventType("m.room.redaction", b.handleEvent)
-	syncer.OnEventType("m.room.message", b.handleEvent)
-	syncer.OnEventType("m.room.member", b.handleMemberChange)
-	go func() {
-		for {
-			if b == nil {
-				return
-			}
-			if err := b.mc.Sync(); err != nil {
-				b.Log.Errorf("Sync() returned ", err)
-			}
-		}
-	}()
 }
 
 func (b *AppServMatrix) handleEdit(ev *matrix.Event, rmsg config.Message) bool {

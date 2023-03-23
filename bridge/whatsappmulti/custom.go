@@ -1,24 +1,21 @@
 package bwhatsapp
 
 import (
-	"context"
-	"errors"
 	"fmt"
-	"os"
 	"time"
 
 	"github.com/42wim/matterbridge/bridge/config"
-	"github.com/mdp/qrterminal"
-	"go.mau.fi/whatsmeow"
 	"go.mau.fi/whatsmeow/types"
-	waLog "go.mau.fi/whatsmeow/util/log"
 )
+
+var GroupInfo = make(map[string]string)
 
 func (b *Bwhatsapp) IsSetupDM(userID string) bool {
 	v, ok := b.dmSetupList[userID]
 	return v && ok
 }
 func (b *Bwhatsapp) HandleDirectMessage(rmsg *config.Message) {
+
 	b.dmSetupList[rmsg.UserID] = true
 	rmsg.Channel = rmsg.UserID
 	rmsg.Event = "direct_msg"
@@ -27,10 +24,31 @@ func (b *Bwhatsapp) HandleDirectMessage(rmsg *config.Message) {
 	rmsg.ChannelId = rmsg.UserID
 
 }
+func (b *Bwhatsapp) HandleGroupMessage(rmsg *config.Message, jid types.JID) {
+	channelName := GroupInfo[jid.String()]
+	if channelName == "" {
+		gInfo, err := b.wc.GetGroupInfo(jid)
+		if err != nil {
+			b.Log.Info(err)
+		}
+		channelName = gInfo.GroupName.Name
+		GroupInfo[jid.String()] = channelName
+	}
+
+	rmsg.Event = "new_users"
+	rmsg.Protocol = "whatsapp"
+	rmsg.ChannelId = rmsg.Channel
+	rmsg.ChannelName = channelName
+	rmsg.ExtraNetworkInfo.UsersMemberId = map[string]string{
+		rmsg.UserID: rmsg.Username,
+	}
+
+}
 func (b *Bwhatsapp) SendGroupsInfo(groups []*types.GroupInfo) {
 	time.Sleep(10 * time.Second)
 
 	for _, group := range groups {
+		GroupInfo[group.JID.String()] = group.GroupName.Name
 		var contacts []string
 		contactsName := make(map[string]string)
 		for _, contact := range group.Participants {
@@ -54,112 +72,6 @@ func (b *Bwhatsapp) SendGroupsInfo(groups []*types.GroupInfo) {
 		}
 	}
 
-}
-func (b *Bwhatsapp) ApsConnect() error {
-	device, err := b.getDevice()
-	if err != nil {
-		return err
-	}
-
-	number := b.GetString(cfgNumber)
-	if number == "" {
-		return errors.New("whatsapp's telephone number need to be configured")
-	}
-
-	b.Log.Debugln("Connecting to WhatsApp..")
-
-	b.wc = whatsmeow.NewClient(device, waLog.Stdout("Client", "INFO", true))
-	b.wc.AddEventHandler(b.eventHandler)
-
-	firstlogin := false
-	var qrChan <-chan whatsmeow.QRChannelItem
-	if b.wc.Store.ID == nil {
-		firstlogin = true
-		qrChan, err = b.wc.GetQRChannel(context.Background())
-		b.Remote <- config.Message{
-			Text:             "hi",
-			Channel:          "#testing",
-			Username:         "system",
-			UserID:           "",
-			Avatar:           "",
-			Account:          b.Account,
-			Event:            "event",
-			Protocol:         "whatsapp",
-			Gateway:          "",
-			ParentID:         "",
-			Timestamp:        time.Time{},
-			ID:               "",
-			Extra:            map[string][]interface{}{},
-			ExtraNetworkInfo: config.ExtraNetworkInfo{},
-		}
-		if err != nil && !errors.Is(err, whatsmeow.ErrQRStoreContainsID) {
-			return errors.New("failed to to get QR channel:" + err.Error())
-		}
-	}
-
-	err = b.wc.Connect()
-	if err != nil {
-		return errors.New("failed to connect to WhatsApp: " + err.Error())
-	}
-
-	if b.wc.Store.ID == nil {
-		for evt := range qrChan {
-			if evt.Event == "code" {
-				qrterminal.GenerateHalfBlock(evt.Code, qrterminal.L, os.Stdout)
-			} else {
-				b.Log.Infof("QR channel result: %s", evt.Event)
-			}
-		}
-	}
-
-	// disconnect and reconnect on our first login/pairing
-	// for some reason the GetJoinedGroups in JoinChannel doesn't work on first login
-	if firstlogin {
-		b.wc.Disconnect()
-		time.Sleep(time.Second)
-
-		err = b.wc.Connect()
-		if err != nil {
-			return errors.New("failed to connect to WhatsApp: " + err.Error())
-		}
-	}
-
-	b.Log.Infoln("WhatsApp connection successful")
-
-	b.contacts, err = b.wc.Store.Contacts.GetAllContacts()
-	if err != nil {
-		return errors.New("failed to get contacts: " + err.Error())
-	}
-
-	b.startedAt = time.Now()
-
-	// map all the users
-	for id, contact := range b.contacts {
-		if !isGroupJid(id.String()) && id.String() != "status@broadcast" {
-			// it is user
-			b.users[id.String()] = contact
-		}
-	}
-
-	// get user avatar asynchronously
-	b.Log.Info("Getting user avatars..")
-
-	for jid := range b.users {
-		info, err := b.GetProfilePicThumb(jid)
-		if err != nil {
-			b.Log.Warnf("Could not get profile photo of %s: %v", jid, err)
-		} else {
-			b.Lock()
-			if info != nil {
-				b.userAvatars[jid] = info.URL
-			}
-			b.Unlock()
-		}
-	}
-
-	b.Log.Info("Finished getting avatars..")
-
-	return nil
 }
 
 // Disconnect is called while reconnecting to the bridge
