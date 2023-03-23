@@ -373,6 +373,7 @@ func (b *AppServMatrix) handleChannelInfoEvent(channelName, channelID string, me
 	go b.registerUsersList(list)
 	b.leaveUsersInChannel(channelID, members)
 
+	var applyDelay bool
 	if !b.isChannelExist(channelID) {
 
 		roomId, err := b.createRoom(channelName, []string{b.GetString("MainUser")}, false)
@@ -385,10 +386,17 @@ func (b *AppServMatrix) handleChannelInfoEvent(channelName, channelID string, me
 		b.AddNewChannel(channelName, roomId, channelID, false)
 
 		b.setRoomMap(roomId, channelID)
+		applyDelay = true
+
 	}
 	b.addNewMembers(channelID, members)
 
 	go b.InviteUsersLoop(channelID)
+
+	// delay to make room creation and invite , so first will not be lost
+	if applyDelay {
+		time.Sleep(2 * time.Second)
+	}
 
 }
 func (b *AppServMatrix) InviteUsersLoop(channelID string) {
