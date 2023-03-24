@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"io"
+	"net/mail"
 	"strings"
 
 	"github.com/42wim/matterbridge/bridge/config"
@@ -71,27 +72,40 @@ func (b *Bemail) HandleEmailEvent(msg config.Message) {
 			return
 
 		}
-		senderAddress := getStringBetween(emailContent.Header.Get("From"), "<", ">")
-
-		receiverAddress := getStringBetween(emailContent.Header.Get("To"), "<", ">")
-
-		if receiverAddress != b.AccountImapAddress {
-			b.Log.Debugf("email receiver address is not match : %s", receiverAddress)
+		// mail.ParseAddress(emailContent.Header.Get("to"))
+		sender, err := mail.ParseAddress(emailContent.Header.Get("From"))
+		if err != nil {
+			b.Log.Errorf("parse email sender address failed : %s", err)
 			return
+		}
+
+		receiver, err := mail.ParseAddress(emailContent.Header.Get("To"))
+		if err != nil {
+			b.Log.Errorf("parse email receiver address failed : %s", err)
+			return
+		}
+
+		if receiver.Address != b.AccountImapAddress {
+			b.Log.Debugf("email receiver address is not match : %s", receiver.Address)
+			return
+		}
+		senderName := sender.Name
+		if senderName == "" {
+			senderName = sender.Address
 		}
 		msg := config.Message{
 			Text:     "",
-			Channel:  senderAddress,
-			Username: senderAddress,
-			UserID:   senderAddress,
+			Channel:  sender.Address,
+			Username: senderName,
+			UserID:   sender.Address,
 			Avatar:   "",
 			Account:  b.Account,
 			Event:    "direct_msg",
 			Protocol: "email",
 			ID:       "",
 			ExtraNetworkInfo: config.ExtraNetworkInfo{
-				ChannelId:      senderAddress,
-				ChannelName:    senderAddress,
+				ChannelId:      sender.Address,
+				ChannelName:    senderName,
 				TargetPlatform: "appservice",
 			},
 		}
