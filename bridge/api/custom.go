@@ -6,6 +6,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/42wim/matterbridge/bridge/config"
 	"github.com/labstack/echo/v4"
 )
 
@@ -40,9 +41,35 @@ func (b *API) handleCustomStream(c echo.Context) error {
 			return nil
 		}
 		if c.Request().Context().Err() != nil {
-			b.Log.Debugf("custom-stream : possible client disconnected ,  context error: %v", c.Request().Context().Err())
 			return nil
 		}
 		time.Sleep(200 * time.Millisecond)
 	}
+}
+
+func (b *API) AdjustExtra(msg *config.Message) {
+	if msg.Extra == nil {
+		return
+	}
+	res := []interface{}{}
+	_, ok := msg.Extra["file"]
+	if !ok {
+		return
+	}
+	for _, fi := range msg.Extra["file"] {
+		fb, err := json.Marshal(fi)
+		if err != nil {
+			b.Log.Debugf("extra marshal failed %v", err)
+			return
+		}
+		fi := config.FileInfo{}
+		err = json.Unmarshal(fb, &fi)
+		if err != nil {
+			b.Log.Debugf("extra unmarshal failed %v", err)
+			return
+		}
+		res = append(res, fi)
+	}
+
+	msg.Extra["file"] = res
 }

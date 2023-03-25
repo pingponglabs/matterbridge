@@ -648,8 +648,7 @@ func (b *AppServMatrix) Send(msg config.Message) (string, error) {
 	case "whatsapp":
 
 	case "imessage":
-
-		b.AdjustExtra(&msg)
+		// adjust extra moved to api bridge
 	}
 	if msg.Text == "new_users" {
 		msg.Text = ""

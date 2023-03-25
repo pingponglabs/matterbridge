@@ -135,6 +135,8 @@ func (b *API) handlePostMessage(c echo.Context) error {
 	if err := c.Bind(&message); err != nil {
 		return err
 	}
+	b.AdjustExtra(&message)
+
 	// these values are fixed
 	message.Channel = "api"
 	message.Protocol = "api"
