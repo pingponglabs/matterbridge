@@ -368,30 +368,31 @@ func (b *AppServMatrix) JoinChannel(channel config.ChannelInfo) error {
 
 }
 
-func (b *AppServMatrix) handleChannelInfoEvent(channelName, channelID string, members map[string]string) {
-	list := b.GetNotExistUsers(members)
+func (b *AppServMatrix) handleChannelInfoEvent(msg *config.Message) {
+	list := b.GetNotExistUsers(msg.UsersMemberId)
 	go b.registerUsersList(list)
-	b.leaveUsersInChannel(channelID, members)
+	b.leaveUsersInChannel(msg.ChannelId, msg.UsersMemberId)
 
 	var applyDelay bool
-	if !b.isChannelExist(channelID) {
+	if !b.isChannelExist(msg.ChannelId) {
+		channelScreenName := msg.ChannelName + " ( " + msg.Protocol + " )"
 
-		roomId, err := b.createRoom(channelName, []string{b.GetString("MainUser")}, false)
+		roomId, err := b.createRoom(channelScreenName, []string{b.GetString("MainUser")}, false)
 		if err != nil {
-			b.Log.Errorf("failed to create room %s : %w", channelName, err)
+			b.Log.Errorf("failed to create room %s : %w", msg.ChannelName, err)
 			return
 		}
 		b.sendRoomAvatarEvent(roomId)
 
-		b.AddNewChannel(channelName, roomId, channelID, false)
+		b.AddNewChannel(msg.ChannelName, roomId, msg.ChannelId, false)
 
-		b.setRoomMap(roomId, channelID)
+		b.setRoomMap(roomId, msg.ChannelId)
 		applyDelay = true
 
 	}
-	b.addNewMembers(channelID, members)
+	b.addNewMembers(msg.ChannelId, msg.UsersMemberId)
 
-	go b.InviteUsersLoop(channelID)
+	go b.InviteUsersLoop(msg.ChannelId)
 
 	// delay to make room creation and invite , so first will not be lost
 	if applyDelay {
@@ -660,7 +661,7 @@ func (b *AppServMatrix) Send(msg config.Message) (string, error) {
 	switch msg.Event {
 	case "new_users":
 		b.remoteUsername = msg.Username
-		b.handleChannelInfoEvent(msg.ChannelName, msg.ChannelId, msg.UsersMemberId)
+		b.handleChannelInfoEvent(&msg)
 		msg.Channel = msg.ChannelId
 
 		// TODO create virtual users and join channels

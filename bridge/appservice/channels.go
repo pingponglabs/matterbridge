@@ -116,7 +116,6 @@ func AlterAlias(s string) string {
 	return s
 }
 func (b *AppServMatrix) createRoom(roomName string, members []string, isDirect bool) (string, error) {
-	roomName = roomName + " ( " + b.RemoteProtocol + " )"
 	preset := "public_chat"
 	invites := []id.UserID{}
 	for _, v := range members {
