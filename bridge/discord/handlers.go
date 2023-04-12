@@ -107,6 +107,11 @@ func (b *Bdiscord) messageCreate(s *discordgo.Session, m *discordgo.MessageCreat
 
 	rmsg := config.Message{Account: b.Account, Avatar: "https://cdn.discordapp.com/avatars/" + m.Author.ID + "/" + m.Author.Avatar + ".jpg", UserID: m.Author.ID, ID: m.ID}
 
+	// custom attachments handling
+	if b.GetBool("AppServiceLink") {
+		rmsg.Extra = make(map[string][]interface{})
+		b.HandleCustomAttachments(&rmsg, m.Message)
+	}
 	b.Log.Debugf("== Receiving event %#v", m.Message)
 
 	if m.Content != "" {

@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/42wim/matterbridge/bridge/config"
+	"github.com/42wim/matterbridge/bridge/helper"
 	"github.com/bwmarrin/discordgo"
 )
 
@@ -105,4 +106,20 @@ func (b *Bdiscord) GetChannelIDFromUserID(ID string) string {
 		return channel
 	}
 	return ""
+}
+
+func (b *Bdiscord) HandleCustomAttachments(rmsg *config.Message, msg *discordgo.Message) {
+	if rmsg.Text == "" && len(msg.Attachments) > 0 {
+		rmsg.Text = "attachment_handle"
+	}
+
+	for _, attachment := range msg.Attachments {
+
+		data, err := helper.DownloadFile(attachment.URL)
+		if err != nil {
+			b.Log.Errorf("download %s failed %#v", attachment.URL, err)
+		}
+		// add the downloaded data to the message
+		helper.HandleDownloadData(b.Log, rmsg, attachment.Filename, "", attachment.URL, data, b.General)
+	}
 }
