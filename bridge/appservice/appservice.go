@@ -1213,6 +1213,16 @@ func (b *AppServMatrix) handleUploadFile(msg *config.Message, channel string, fi
 		b.Log.Errorf("file upload failed: %#v", err)
 		return
 	}
+	if fi.Comment != "" {
+		b.Log.Debugf("sendText : attachment comment %s", fi.Comment)
+		err := b.retry(func() error {
+			_, err = mc.SendText(channel, fi.Comment)
+			return err
+		})
+		if err != nil {
+			b.Log.Errorf("sendText failed: %#v", err)
+		}
+	}
 
 	switch {
 	case strings.Contains(mtype, "video"):
