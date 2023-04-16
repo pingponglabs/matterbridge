@@ -58,7 +58,7 @@ func (b *Btelegram) HandleReceiveMentions(message config.Message) []tgbotapi.Mes
 }
 func (b *Btelegram) sendApsMessage(chatid int64, username, text string, parentID int, rmsg config.Message) (string, error) {
 	m := tgbotapi.NewMessage(chatid, "")
-	m.Text, m.ParseMode = TGGetParseMode(b, username, text)
+	m.Text, m.ParseMode = text, tgbotapi.ModeHTML
 	m.ReplyToMessageID = parentID
 	m.DisableWebPagePreview = b.GetBool("DisableWebPagePreview")
 	m.Entities = b.HandleReceiveMentions(rmsg)

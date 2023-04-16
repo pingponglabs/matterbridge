@@ -100,7 +100,7 @@ func (b *Btelegram) Send(msg config.Message) (string, error) {
 		return b.cacheAvatar(&msg)
 	}
 
-	if b.GetString("MessageFormat") == HTMLFormat {
+	if b.GetString("MessageFormat") == HTMLFormat && !b.GetBool("AppServiceLink") {
 		msg.Text = makeHTML(html.EscapeString(msg.Text))
 	}
 
