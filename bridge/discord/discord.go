@@ -251,7 +251,7 @@ func (b *Bdiscord) JoinChannel(channel config.ChannelInfo) error {
 
 func (b *Bdiscord) Send(msg config.Message) (string, error) {
 	b.Log.Debugf("=> Receiving %#v", msg)
-	if msg.Event == "direct_msg"{
+	if msg.Event == "direct_msg" {
 		return b.HandleDirectMessage(msg)
 	}
 	channelID := b.getChannelID(msg.Channel)

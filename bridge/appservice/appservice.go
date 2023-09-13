@@ -642,7 +642,7 @@ func (b *AppServMatrix) Send(msg config.Message) (string, error) {
 	case "irc":
 
 	case "discord":
-		if msg.Extra != nil {
+		if len(msg.Extra) >0  {
 			msg.Text = ""
 		}
 		msg.Channel = msg.ChannelId
