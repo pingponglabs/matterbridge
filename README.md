@@ -114,6 +114,7 @@ And more...
 
 ### 3rd party via matterbridge api
 
+- [Delta Chat](https://github.com/deltachat-bot/matterdelta)
 - [Discourse](https://github.com/DeclanHoare/matterbabble)
 - [Facebook messenger](https://github.com/powerjungle/fbridge-asyncio)
 - [Facebook messenger](https://github.com/VictorNine/fbridge)
@@ -400,7 +401,6 @@ Matterbridge wouldn't exist without these libraries:
 
 - discord - <https://github.com/bwmarrin/discordgo>
 - echo - <https://github.com/labstack/echo>
-- gitter - <https://github.com/sromku/go-gitter>
 - gops - <https://github.com/google/gops>
 - gozulipbot - <https://github.com/ifo/gozulipbot>
 - gumble - <https://github.com/layeh/gumble>
