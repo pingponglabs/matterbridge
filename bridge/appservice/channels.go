@@ -72,7 +72,6 @@ func (b *AppServMatrix) uploadAvatar() {
 			ContentLength: 0,
 			ContentType:   "",
 			FileName:      filepath.Base(path),
-			UnstableMXC:   id.ContentURI{},
 		},
 	)
 	if err != nil {

@@ -28,7 +28,7 @@ func (b *API) handleCustomStream(c echo.Context) error {
 	defer pollingLock.Unlock()
 
 	c.Response().Header().Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
-
+    //  TODO: possible change it with select
 	for {
 		// TODO: this causes issues, messages should be broadcasted to all connected clients
 		msg := b.Messages.Dequeue()

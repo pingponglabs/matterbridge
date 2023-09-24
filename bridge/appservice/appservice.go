@@ -642,7 +642,7 @@ func (b *AppServMatrix) Send(msg config.Message) (string, error) {
 	case "irc":
 
 	case "discord":
-		if len(msg.Extra) >0  {
+		if len(msg.Extra) > 0 {
 			msg.Text = ""
 		}
 		msg.Channel = msg.ChannelId
@@ -694,6 +694,28 @@ func (b *AppServMatrix) SendMtx(msg config.Message) (string, error) {
 	channel := b.getRoomID(msg.Channel)
 	b.Log.Debugf("Channel %s maps to channel id %s", msg.Channel, channel)
 
+	// Delete message
+	if msg.Event == config.EventMsgDelete {
+		if msg.ID == "" {
+			return "", nil
+		}
+
+		msgID := ""
+
+		err := b.retry(func() error {
+			resp, err := b.apsCli.RedactEvent(id.RoomID(channel), id.EventID(msg.ID), gomatrix.ReqRedact{})
+			if err != nil {
+				return err
+			}
+
+			msgID = resp.EventID.String()
+
+			return err
+		})
+
+		return msgID, err
+	}
+
 	mtxInfo, ok := b.getUserMapInfo(msg.UserID)
 	if !ok {
 		b.Log.Errorf("userID %s for name %s not exist in the appservice database", msg.UserID, msg.Username)
@@ -727,28 +749,6 @@ func (b *AppServMatrix) SendMtx(msg config.Message) (string, error) {
 
 		err := b.retry(func() error {
 			resp, err := mc.SendMessageEvent(channel, "m.room.message", m)
-			if err != nil {
-				return err
-			}
-
-			msgID = resp.EventID
-
-			return err
-		})
-
-		return msgID, err
-	}
-
-	// Delete message
-	if msg.Event == config.EventMsgDelete {
-		if msg.ID == "" {
-			return "", nil
-		}
-
-		msgID := ""
-
-		err := b.retry(func() error {
-			resp, err := mc.RedactEvent(channel, msg.ID, &matrix.ReqRedact{})
 			if err != nil {
 				return err
 			}

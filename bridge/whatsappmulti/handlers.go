@@ -455,6 +455,9 @@ func (b *Bwhatsapp) handleDocumentMessage(msg *events.Message) {
 }
 
 func (b *Bwhatsapp) handleDelete(messageInfo *proto.ProtocolMessage) {
+	if messageInfo.Key.Participant==nil {
+		return
+	}
 	sender, _ := types.ParseJID(*messageInfo.Key.Participant)
 
 	rmsg := config.Message{
