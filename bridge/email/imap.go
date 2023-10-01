@@ -232,7 +232,7 @@ func (b *Bemail) ConnectImapFetch() error {
 	b.Log.Debug("Connected to IMAP server")
 
 	// Login
-	if err := c.Login(b.GetString("username"), b.GetString("password")); err != nil {
+	if err := c.Login(b.GetString("IMAPUsername"), b.GetString("IMAPPassword")); err != nil {
 		return err
 	}
 
