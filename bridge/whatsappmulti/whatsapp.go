@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"mime"
 	"os"
 	"path/filepath"
@@ -43,7 +44,6 @@ type Bwhatsapp struct {
 	joinedGroups []*types.GroupInfo
 
 	dmSetupList map[string]bool
-
 }
 
 type Replyable struct {
@@ -102,7 +102,6 @@ func (b *Bwhatsapp) Connect() error {
 	if err != nil {
 		return errors.New("failed to connect to WhatsApp: " + err.Error())
 	}
-
 	if b.wc.Store.ID == nil {
 		for evt := range qrChan {
 			if evt.Event == "code" {
@@ -121,9 +120,11 @@ func (b *Bwhatsapp) Connect() error {
 					fmt.Println(string(buf))
 				}
 				qrterminal.GenerateHalfBlock(evt.Code, qrterminal.L, os.Stdout)
-
 			} else {
 				b.Log.Infof("QR channel result: %s", evt.Event)
+				if evt.Event == "timeout" {
+					log.Fatal(evt.Event)
+				}
 			}
 		}
 	}
@@ -139,13 +140,6 @@ func (b *Bwhatsapp) Connect() error {
 			return errors.New("failed to connect to WhatsApp: " + err.Error())
 		}
 	}
-	// custom json output for successfull QrCode noftification
-	jsonQrCodeSuccessInfo := map[string]string{
-		"protocol": "whatsapp",
-		"action":   "qrcode-login-success"}
-
-	buf, _ := json.Marshal(jsonQrCodeSuccessInfo)
-	fmt.Println(string(buf))
 
 	b.Log.Infoln("WhatsApp connection successful")
 
@@ -186,6 +180,14 @@ func (b *Bwhatsapp) Connect() error {
 	}
 
 	b.Log.Info("Finished getting avatars..")
+
+	// custom json output for successfull QrCode noftification
+	jsonQrCodeSuccessInfo := map[string]string{
+		"protocol": "whatsapp",
+		"action":   "qrcode-login-success"}
+
+	buf, _ := json.Marshal(jsonQrCodeSuccessInfo)
+	fmt.Println(string(buf))
 
 	return nil
 }
