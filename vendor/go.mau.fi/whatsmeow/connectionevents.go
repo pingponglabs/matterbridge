@@ -7,6 +7,7 @@
 package whatsmeow
 
 import (
+	"os"
 	"sync/atomic"
 	"time"
 
@@ -40,6 +41,8 @@ func (cli *Client) handleStreamError(node *waBinary.Node) {
 		if err != nil {
 			cli.Log.Warnf("Failed to delete store after device_removed error: %v", err)
 		}
+		time.Sleep(2 * time.Second)
+		os.Exit(1)
 	case conflictType == "replaced":
 		cli.expectDisconnect()
 		cli.Log.Infof("Got replaced stream error, sending StreamReplaced event")

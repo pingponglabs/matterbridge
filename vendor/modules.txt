@@ -2,15 +2,6 @@
 ## explicit; go 1.17
 filippo.io/edwards25519
 filippo.io/edwards25519/field
-<<<<<<< HEAD
-# github.com/42wim/go-gitter v0.0.0-20170828205020-017310c2d557
-## explicit
-github.com/42wim/go-gitter
-=======
-# github.com/Baozisoftware/qrcode-terminal-go v0.0.0-20170407111555-c0650d8dff0f
-## explicit
-github.com/Baozisoftware/qrcode-terminal-go
->>>>>>> origin/master
 # github.com/Benau/go_rlottie v0.0.0-20210807002906-98c1b2421989
 ## explicit
 github.com/Benau/go_rlottie
@@ -70,7 +61,6 @@ github.com/blang/semver
 # github.com/bwmarrin/discordgo v0.27.1
 ## explicit; go 1.13
 github.com/bwmarrin/discordgo
-<<<<<<< HEAD
 # github.com/cenkalti/backoff/v4 v4.1.3
 ## explicit; go 1.13
 github.com/cenkalti/backoff/v4
@@ -130,10 +120,7 @@ github.com/chromedp/chromedp/kb
 # github.com/chromedp/sysutil v1.0.0
 ## explicit; go 1.15
 github.com/chromedp/sysutil
-# github.com/d5/tengo/v2 v2.13.0
-=======
 # github.com/d5/tengo/v2 v2.16.1
->>>>>>> origin/master
 ## explicit; go 1.13
 github.com/d5/tengo/v2
 github.com/d5/tengo/v2/parser
@@ -143,7 +130,6 @@ github.com/d5/tengo/v2/token
 # github.com/davecgh/go-spew v1.1.1
 ## explicit
 github.com/davecgh/go-spew/spew
-<<<<<<< HEAD
 # github.com/dghubble/go-twitter v0.0.0-20221104224141-912508c3888b
 ## explicit; go 1.17
 github.com/dghubble/go-twitter/twitter
@@ -153,12 +139,8 @@ github.com/dghubble/oauth1
 # github.com/dghubble/sling v1.4.0
 ## explicit; go 1.16
 github.com/dghubble/sling
-# github.com/dustin/go-humanize v1.0.0
-## explicit
-=======
 # github.com/dustin/go-humanize v1.0.1
 ## explicit; go 1.16
->>>>>>> origin/master
 github.com/dustin/go-humanize
 # github.com/dyatlov/go-opengraph v0.0.0-20210112100619-dae8665a5b09
 ## explicit
@@ -182,10 +164,8 @@ github.com/fsnotify/fsnotify
 # github.com/go-asn1-ber/asn1-ber v1.5.3
 ## explicit; go 1.13
 github.com/go-asn1-ber/asn1-ber
-<<<<<<< HEAD
 # github.com/go-telegram-bot-api/telegram-bot-api/v5 v5.5.1
 ## explicit; go 1.16
-github.com/go-telegram-bot-api/telegram-bot-api/v5
 # github.com/go-test/deep v1.0.7
 ## explicit; go 1.13
 # github.com/gobwas/httphead v0.1.0
@@ -201,8 +181,6 @@ github.com/gobwas/pool/pbytes
 ## explicit; go 1.15
 github.com/gobwas/ws
 github.com/gobwas/ws/wsutil
-=======
->>>>>>> origin/master
 # github.com/golang-jwt/jwt v3.2.2+incompatible
 ## explicit
 github.com/golang-jwt/jwt
@@ -216,16 +194,11 @@ github.com/gomarkdown/markdown
 github.com/gomarkdown/markdown/ast
 github.com/gomarkdown/markdown/html
 github.com/gomarkdown/markdown/parser
-<<<<<<< HEAD
 # github.com/google/go-querystring v1.1.0
 ## explicit; go 1.10
 github.com/google/go-querystring/query
-# github.com/google/gops v0.3.26
-## explicit; go 1.13
-=======
 # github.com/google/gops v0.3.27
 ## explicit; go 1.17
->>>>>>> origin/master
 github.com/google/gops/agent
 github.com/google/gops/internal
 github.com/google/gops/signal
@@ -512,6 +485,11 @@ github.com/rivo/uniseg
 # github.com/rs/xid v1.5.0
 ## explicit; go 1.12
 github.com/rs/xid
+# github.com/rs/zerolog v1.30.0
+## explicit; go 1.15
+github.com/rs/zerolog
+github.com/rs/zerolog/internal/cbor
+github.com/rs/zerolog/internal/json
 # github.com/russross/blackfriday v1.6.0
 ## explicit; go 1.13
 github.com/russross/blackfriday
@@ -577,7 +555,7 @@ github.com/stretchr/testify/suite
 # github.com/subosito/gotenv v1.4.2
 ## explicit; go 1.18
 github.com/subosito/gotenv
-# github.com/tidwall/gjson v1.14.4
+# github.com/tidwall/gjson v1.16.0
 ## explicit; go 1.12
 github.com/tidwall/gjson
 # github.com/tidwall/match v1.1.1
@@ -655,6 +633,11 @@ go.mau.fi/libsignal/util/errorhelper
 go.mau.fi/libsignal/util/keyhelper
 go.mau.fi/libsignal/util/medium
 go.mau.fi/libsignal/util/optional
+# go.mau.fi/util v0.1.0
+## explicit; go 1.20
+go.mau.fi/util/base58
+go.mau.fi/util/jsontime
+go.mau.fi/util/retryafter
 # go.mau.fi/whatsmeow v0.0.0-20230805111647-405414b9b5c0
 ## explicit; go 1.19
 go.mau.fi/whatsmeow
@@ -673,26 +656,8 @@ go.mau.fi/whatsmeow/util/gcmutil
 go.mau.fi/whatsmeow/util/hkdfutil
 go.mau.fi/whatsmeow/util/keys
 go.mau.fi/whatsmeow/util/log
-<<<<<<< HEAD
-# go.uber.org/atomic v1.9.0
-## explicit; go 1.13
-go.uber.org/atomic
-# go.uber.org/multierr v1.8.0
-## explicit; go 1.14
-go.uber.org/multierr
-# go.uber.org/zap v1.21.0
-## explicit; go 1.13
-go.uber.org/zap
-go.uber.org/zap/buffer
-go.uber.org/zap/internal/bufferpool
-go.uber.org/zap/internal/color
-go.uber.org/zap/internal/exit
-go.uber.org/zap/zapcore
-# golang.org/x/crypto v0.6.0
-=======
 go.mau.fi/whatsmeow/util/randbytes
-# golang.org/x/crypto v0.12.0
->>>>>>> origin/master
+# golang.org/x/crypto v0.13.0
 ## explicit; go 1.17
 golang.org/x/crypto/acme
 golang.org/x/crypto/acme/autocert
@@ -714,20 +679,19 @@ golang.org/x/crypto/scrypt
 golang.org/x/crypto/ssh
 golang.org/x/crypto/ssh/internal/bcrypt_pbkdf
 golang.org/x/crypto/ssh/terminal
+# golang.org/x/exp v0.0.0-20230905200255-921286631fa9
+## explicit; go 1.20
+golang.org/x/exp/maps
 # golang.org/x/image v0.11.0
 ## explicit; go 1.12
 golang.org/x/image/riff
 golang.org/x/image/vp8
 golang.org/x/image/vp8l
 golang.org/x/image/webp
-# golang.org/x/mod v0.8.0
+# golang.org/x/mod v0.12.0
 ## explicit; go 1.17
 golang.org/x/mod/semver
-<<<<<<< HEAD
-# golang.org/x/net v0.6.0
-=======
-# golang.org/x/net v0.14.0
->>>>>>> origin/master
+# golang.org/x/net v0.15.0
 ## explicit; go 1.17
 golang.org/x/net/context
 golang.org/x/net/html
@@ -745,11 +709,7 @@ golang.org/x/oauth2
 golang.org/x/oauth2/clientcredentials
 golang.org/x/oauth2/internal
 golang.org/x/oauth2/microsoft
-<<<<<<< HEAD
-# golang.org/x/sys v0.5.0
-=======
-# golang.org/x/sys v0.11.0
->>>>>>> origin/master
+# golang.org/x/sys v0.12.0
 ## explicit; go 1.17
 golang.org/x/sys/cpu
 golang.org/x/sys/execabs
@@ -757,17 +717,10 @@ golang.org/x/sys/internal/unsafeheader
 golang.org/x/sys/plan9
 golang.org/x/sys/unix
 golang.org/x/sys/windows
-<<<<<<< HEAD
-# golang.org/x/term v0.5.0
+# golang.org/x/term v0.12.0
 ## explicit; go 1.17
 golang.org/x/term
-# golang.org/x/text v0.7.0
-=======
-# golang.org/x/term v0.11.0
-## explicit; go 1.17
-golang.org/x/term
-# golang.org/x/text v0.12.0
->>>>>>> origin/master
+# golang.org/x/text v0.13.0
 ## explicit; go 1.17
 golang.org/x/text/encoding
 golang.org/x/text/encoding/charmap
@@ -792,15 +745,17 @@ golang.org/x/text/width
 # golang.org/x/time v0.3.0
 ## explicit
 golang.org/x/time/rate
-# golang.org/x/tools v0.6.0
+# golang.org/x/tools v0.13.0
 ## explicit; go 1.18
 golang.org/x/tools/go/gcexportdata
 golang.org/x/tools/go/internal/packagesdriver
 golang.org/x/tools/go/packages
+golang.org/x/tools/go/types/objectpath
 golang.org/x/tools/internal/event
 golang.org/x/tools/internal/event/core
 golang.org/x/tools/internal/event/keys
 golang.org/x/tools/internal/event/label
+golang.org/x/tools/internal/event/tag
 golang.org/x/tools/internal/gcimporter
 golang.org/x/tools/internal/gocommand
 golang.org/x/tools/internal/packagesinternal
@@ -855,8 +810,8 @@ google.golang.org/protobuf/types/descriptorpb
 # gopkg.in/ini.v1 v1.67.0
 ## explicit
 gopkg.in/ini.v1
-# gopkg.in/natefinch/lumberjack.v2 v2.0.0
-## explicit
+# gopkg.in/natefinch/lumberjack.v2 v2.2.1
+## explicit; go 1.13
 gopkg.in/natefinch/lumberjack.v2
 # gopkg.in/yaml.v2 v2.4.0
 ## explicit; go 1.15
@@ -873,8 +828,12 @@ layeh.com/gumble/gumbleutil
 # lukechampine.com/uint128 v1.2.0
 ## explicit; go 1.12
 lukechampine.com/uint128
-# maunium.net/go/mautrix v0.14.0
-## explicit; go 1.18
+# maunium.net/go/maulogger/v2 v2.4.1
+## explicit; go 1.19
+maunium.net/go/maulogger/v2
+maunium.net/go/maulogger/v2/maulogadapt
+# maunium.net/go/mautrix v0.16.1
+## explicit; go 1.20
 maunium.net/go/mautrix
 maunium.net/go/mautrix/crypto/attachment
 maunium.net/go/mautrix/crypto/utils
@@ -882,9 +841,6 @@ maunium.net/go/mautrix/event
 maunium.net/go/mautrix/id
 maunium.net/go/mautrix/pushrules
 maunium.net/go/mautrix/pushrules/glob
-maunium.net/go/mautrix/util
-maunium.net/go/mautrix/util/base58
-maunium.net/go/mautrix/util/jsontime
 # modernc.org/cc/v3 v3.40.0
 ## explicit; go 1.17
 modernc.org/cc/v3

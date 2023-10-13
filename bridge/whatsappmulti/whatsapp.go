@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
 	"mime"
 	"os"
 	"path/filepath"
@@ -105,25 +104,30 @@ func (b *Bwhatsapp) Connect() error {
 	if b.wc.Store.ID == nil {
 		for evt := range qrChan {
 			if evt.Event == "code" {
+				qrterminal.GenerateHalfBlock(evt.Code, qrterminal.L, os.Stdout)
 				// custom code : save the QrCode as png image
 				err := qrcode.WriteFile(evt.Code, qrcode.Medium, 256, b.GetString(qrImageOutput))
 				if err != nil {
 					b.Log.Infof("failed to create QR code image :  %s", err)
 				} else {
 					// custom json output containing information about the qrcode image path
+					user, confName := parseUserAndConfFromConfPath(b.GetString(qrImageOutput))
 					jsonQrCodeInfo := map[string]string{
+						"user":              user,
+						"conf_name":         confName,
 						"protocol":          "whatsapp",
 						"action":            "qrcode",
 						"qrcode-image-path": b.GetString(qrImageOutput)}
 
-					buf, _ := json.Marshal(jsonQrCodeInfo)
-					fmt.Println(string(buf))
+					err = sendEvent(confName, jsonQrCodeInfo)
+					if err != nil {
+						b.Log.Error(err)
+					}
 				}
-				qrterminal.GenerateHalfBlock(evt.Code, qrterminal.L, os.Stdout)
 			} else {
 				b.Log.Infof("QR channel result: %s", evt.Event)
 				if evt.Event == "timeout" {
-					log.Fatal(evt.Event)
+					os.Exit(1)
 				}
 			}
 		}
@@ -182,12 +186,18 @@ func (b *Bwhatsapp) Connect() error {
 	b.Log.Info("Finished getting avatars..")
 
 	// custom json output for successfull QrCode noftification
-	jsonQrCodeSuccessInfo := map[string]string{
-		"protocol": "whatsapp",
-		"action":   "qrcode-login-success"}
+	user, confName := parseUserAndConfFromConfPath(b.GetString(qrImageOutput))
 
-	buf, _ := json.Marshal(jsonQrCodeSuccessInfo)
-	fmt.Println(string(buf))
+	jsonQrCodeSuccessInfo := map[string]string{
+		"user":      user,
+		"conf_name": confName,
+		"protocol":  "whatsapp",
+		"action":    "qrcode-login-success"}
+
+	err = sendEvent(confName, jsonQrCodeSuccessInfo)
+	if err != nil {
+		b.Log.Error(err)
+	}
 
 	return nil
 }

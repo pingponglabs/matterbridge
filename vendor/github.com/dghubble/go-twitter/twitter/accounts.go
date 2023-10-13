@@ -53,6 +53,6 @@ type AccountUpdateProfileParams struct {
 func (s *AccountService) UpdateProfile(params *AccountUpdateProfileParams) (*User, *http.Response, error) {
 	user := new(User)
 	apiError := new(APIError)
-	resp, err := sling.New().Post("update_profile.json").QueryStruct(params).Receive(user, apiError)
+	resp, err := s.sling.New().Post("update_profile.json").QueryStruct(params).Receive(user, apiError)
 	return user, resp, relevantError(err, *apiError)
 }

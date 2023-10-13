@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Tulir Asokan
+// Copyright (c) 2023 Tulir Asokan
 //
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -33,6 +33,8 @@ const (
 	MsgFile     MessageType = "m.file"
 
 	MsgVerificationRequest MessageType = "m.key.verification.request"
+
+	MsgBeeperGallery MessageType = "com.beeper.gallery"
 )
 
 // Format specifies the format of the formatted_body in m.room.message events.
@@ -97,6 +99,8 @@ type MessageEventContent struct {
 
 	FileName string `json:"filename,omitempty"`
 
+	Mentions *Mentions `json:"m.mentions,omitempty"`
+
 	// Edits and relations
 	NewContent *MessageEventContent `json:"m.new_content,omitempty"`
 	RelatesTo  *RelatesTo           `json:"m.relates_to,omitempty"`
@@ -108,7 +112,10 @@ type MessageEventContent struct {
 
 	replyFallbackRemoved bool
 
-	MessageSendRetry *BeeperRetryMetadata `json:"com.beeper.message_send_retry,omitempty"`
+	MessageSendRetry         *BeeperRetryMetadata   `json:"com.beeper.message_send_retry,omitempty"`
+	BeeperGalleryImages      []*MessageEventContent `json:"com.beeper.gallery.images,omitempty"`
+	BeeperGalleryCaption     string                 `json:"com.beeper.gallery.caption,omitempty"`
+	BeeperGalleryCaptionHTML string                 `json:"com.beeper.gallery.caption_html,omitempty"`
 }
 
 func (content *MessageEventContent) GetRelatesTo() *RelatesTo {
@@ -167,6 +174,11 @@ func (content *MessageEventContent) GetInfo() *FileInfo {
 		content.Info = &FileInfo{}
 	}
 	return content.Info
+}
+
+type Mentions struct {
+	UserIDs []id.UserID `json:"user_ids,omitempty"`
+	Room    bool        `json:"room,omitempty"`
 }
 
 type EncryptedFileInfo struct {

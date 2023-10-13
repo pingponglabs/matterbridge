@@ -1,7 +1,13 @@
 package bwhatsapp
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
+	"io"
+	"log"
+	"net/http"
+	"path/filepath"
 	"time"
 
 	"github.com/42wim/matterbridge/bridge/config"
@@ -130,4 +136,35 @@ func (b *Bwhatsapp) JoinApsChannel(channel config.ChannelInfo) error {
 	default:
 		return fmt.Errorf("there is more than one group with name '%s'. Please specify one of JIDs as channel name: %v", channel.Name, foundGroups)
 	}
+}
+
+func parseUserAndConfFromConfPath(path string) (string, string) {
+	var user, confName string
+	trimPath := filepath.Dir(path)
+	confName = filepath.Base(trimPath)
+	user = filepath.Base(filepath.Dir(trimPath))
+	return user, confName
+
+}
+func sendEvent(confName string, qrCodeEvent map[string]string) error {
+	buf, _ := json.Marshal(qrCodeEvent)
+	url := fmt.Sprintf("http://localhost:8100/api/v1/matterbridge/%s/event", confName)
+	r, err := http.NewRequest("POST", url, bytes.NewBuffer(buf))
+	if err != nil {
+		return err
+	}
+	client := &http.Client{}
+	res, err := client.Do(r)
+	if err != nil {
+		return err
+	}
+
+	defer res.Body.Close()
+	b, err := io.ReadAll(res.Body)
+	if err != nil {
+		return err
+	}
+
+	log.Println(string(b))
+	return nil
 }

@@ -827,15 +827,9 @@ const (
 	DM_UUID_FLAG                                = 0x4000
 	DM_UUID_LEN                                 = 0x81
 	DM_VERSION                                  = 0xc138fd00
-<<<<<<< HEAD
-	DM_VERSION_EXTRA                            = "-ioctl (2022-07-28)"
-	DM_VERSION_MAJOR                            = 0x4
-	DM_VERSION_MINOR                            = 0x2f
-=======
 	DM_VERSION_EXTRA                            = "-ioctl (2023-03-01)"
 	DM_VERSION_MAJOR                            = 0x4
 	DM_VERSION_MINOR                            = 0x30
->>>>>>> origin/master
 	DM_VERSION_PATCHLEVEL                       = 0x0
 	DT_BLK                                      = 0x6
 	DT_CHR                                      = 0x2
@@ -2827,6 +2821,23 @@ const (
 	RWF_SUPPORTED                               = 0x1f
 	RWF_SYNC                                    = 0x4
 	RWF_WRITE_LIFE_NOT_SET                      = 0x0
+	SCHED_BATCH                                 = 0x3
+	SCHED_DEADLINE                              = 0x6
+	SCHED_FIFO                                  = 0x1
+	SCHED_FLAG_ALL                              = 0x7f
+	SCHED_FLAG_DL_OVERRUN                       = 0x4
+	SCHED_FLAG_KEEP_ALL                         = 0x18
+	SCHED_FLAG_KEEP_PARAMS                      = 0x10
+	SCHED_FLAG_KEEP_POLICY                      = 0x8
+	SCHED_FLAG_RECLAIM                          = 0x2
+	SCHED_FLAG_RESET_ON_FORK                    = 0x1
+	SCHED_FLAG_UTIL_CLAMP                       = 0x60
+	SCHED_FLAG_UTIL_CLAMP_MAX                   = 0x40
+	SCHED_FLAG_UTIL_CLAMP_MIN                   = 0x20
+	SCHED_IDLE                                  = 0x5
+	SCHED_NORMAL                                = 0x0
+	SCHED_RESET_ON_FORK                         = 0x40000000
+	SCHED_RR                                    = 0x2
 	SCM_CREDENTIALS                             = 0x2
 	SCM_RIGHTS                                  = 0x1
 	SCM_TIMESTAMP                               = 0x1d
